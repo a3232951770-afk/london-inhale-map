@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>London, Inhale | 气味情绪地图</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- 引入 Leaflet Heatmap 插件 -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <!-- 引入 Chart.js 用于数据可视化 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- 引入 Firebase SDK (Compat Version 保持原版配置) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- 引入字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- 引入图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: 'Inter', 'Noto Serif SC', sans-serif;
+            background-color: #fdfbf7;
+            overflow: hidden;
+            color: #5c4b37;
+        }
+
+        h1, h2, h3, .serif {
+            font-family: 'Playfair Display', 'Noto Serif SC', serif;
+        }
+
+        /* 容器样式 */
+        .hand-drawn-container {
+            background: rgba(255, 253, 245, 0.95);
+            backdrop-filter: blur(8px);
+            border: 2px solid #d4b996;
+            border-radius: 20px;
+            box-shadow: 5px 5px 15px rgba(92, 75, 55, 0.15);
+        }
+        
+        /* 按钮样式 */
+        .hand-drawn-btn {
+            background-color: #f0e4d4;
+            color: #5c4b37;
+            border: 2px solid #d4b996;
+            border-radius: 9999px; /* 更圆润的胶囊形 */
+            transition: all 0.2s ease;
+        }
+        .hand-drawn-btn:hover {
+            background-color: #e8d7c0;
+            transform: scale(1.02);
+        }
+        .hand-drawn-btn.active {
+            background-color: #d4b996;
+            color: #fff;
+            border-color: #a67b5b;
+        }
+
+        /* 地图容器 */
+        #map-container {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+        
+        /* 羊皮纸纹理 */
+        .parchment-mode .leaflet-layer {
+            filter: sepia(0.3) contrast(1.1) brightness(0.95);
+        }
+        #parchment-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://www.transparenttextures.com/patterns/aged-paper.png');
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 1s ease;
+            mix-blend-mode: multiply;
+        }
+        .parchment-active #parchment-overlay {
+            opacity: 0.3;
+        }
+
+        #map { height: 100%; width: 100%; z-index: 0; }
+        .cursor-pin { cursor: crosshair !important; }
+
+        /* 气味标记动画 */
+        .smell-marker { transition: transform 0.2s ease; }
+        .pulse-ring {
+            border-radius: 50%; height: 100%; width: 100%;
+            position: absolute; left: 0; top: 0;
+            opacity: 0.0; border: 2px solid currentColor;
+            pointer-events: none;
+        }
+        
+        /* 自己的记忆会有特殊的金色脉冲 */
+        .smell-marker.is-mine .pulse-ring {
+            border-color: #d97706 !important; /* Amber-600 */
+            border-width: 3px;
+            animation: pulsate-gold 2s ease-out infinite !important;
+        }
+
+        .smell-marker:hover .pulse-ring, .smell-marker.active .pulse-ring {
+            animation: pulsate 1.5s ease-out infinite;
+        }
+        .smell-marker:hover { z-index: 1000 !important; transform: scale(1.1); }
+        
+        @keyframes pulsate {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2.5); opacity: 0.0; }
+        }
+        @keyframes pulsate-gold {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.8); opacity: 0.0; }
+        }
+
+        /* 自定义标记内部 */
+        .custom-icon-inner {
+            width: 100%; height: 100%; border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid #fffdf5;
+            position: relative;
+        }
+        /* 自己的记忆会有金边 */
+        .smell-marker.is-mine .custom-icon-inner {
+            border: 2px solid #fbbf24; /* Amber-400 */
+        }
+
+        /* Emoji 叠加样式 */
+        .emoji-overlay {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            line-height: 1; opacity: 0.95;
+            pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 路线菜单 */
+        .route-menu {
+            display: none; position: absolute;
+            top: 3.5rem; right: 0; width: 16rem; 
+            max-height: 60vh; 
+            background: rgba(255, 253, 245, 0.98);
+            border: 2px solid #d4b996;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(92, 75, 55, 0.15);
+            overflow: hidden; z-index: 2000;
+            flex-direction: column;
+        }
+        .route-option-chip {
+            border: 1px solid #e2e8f0;
+            padding: 2px 8px; 
+            border-radius: 12px;
+            font-size: 0.7rem; 
+            cursor: pointer; transition: all 0.2s;
+            background: white; color: #64748b;
+            margin-bottom: 2px;
+        }
+        .route-option-chip.selected {
+            background: #d4b996; color: white; border-color: #a67b5b;
+        }
+
+        /* 开场与天气 - 确保居中 */
+        #intro-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(3px);
+            z-index: 5000; display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.8s ease-in-out;
+        }
+        
+        /* 标题栏折叠 */
+        #header-content { transition: max-height 0.3s ease-out, opacity 0.3s ease-out; max-height: 500px; opacity: 1; overflow: hidden; }
+        #header-content.collapsed { max-height: 0; opacity: 0; margin-top: 0; }
+        #header-toggle-icon { transition: transform 0.3s ease; }
+        .header-collapsed #header-toggle-icon { transform: rotate(180deg); }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #weather-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
+        
+        /* 核心：色彩交融 CSS */
+        .leaflet-heatmap-layer {
+            opacity: 0.95 !important; 
+            mix-blend-mode: multiply; 
+        }
+        
+        /* 水墨动效 */
+        .ink-ripple {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, rgba(230, 81, 0, 0.9) 0%, rgba(255, 112, 67, 0.6) 30%, rgba(255, 171, 145, 0.2) 60%, rgba(255, 171, 145, 0) 80%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0.2);
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: multiply; 
+            filter: blur(2px);
+            animation: ink-spread-1-5s 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes ink-spread-1-5s {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+            30% { opacity: 0.7; }
+            100% { transform: translate(-50%, -50%) scale(40); opacity: 0; }
+        }
+
+        /* 标记淡入动画 */
+        .fade-in-marker {
+            opacity: 0;
+            animation: fadeInMarkerFast 0.8s ease-out forwards;
+        }
+        @keyframes fadeInMarkerFast {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        #upload-modal.pointer-events-none { pointer-events: none; }
+        #upload-modal.pointer-events-none * { pointer-events: none; }
+
+        /* 筛选菜单弹出动画 */
+        #filter-popup {
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: bottom left;
+        }
+        #filter-popup.hidden {
+            transform: scale(0.95);
+            opacity: 0;
+            pointer-events: none;
+            display: block; /* keep layout for transform */
+            visibility: hidden;
+        }
+        #filter-popup:not(.hidden) {
+            transform: scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 搜索框动画 */
+        .search-container {
+            transition: width 0.3s ease;
+            width: 140px; 
+            overflow: hidden;
+        }
+        .search-container.expanded {
+            width: 240px;
+        }
+        /* 找到地点的视觉圈圈 */
+        .search-circle {
+            animation: dashDraw 3s linear infinite;
+        }
+        
+        /* 统计图表容器 */
+        .chart-card {
+            background: #fffdf9;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .analysis-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 0.7rem;
+            border: 1px solid #fcd34d;
+        }
+        .report-box {
+            background-image: linear-gradient(#fdfbf7 2px, transparent 2px), linear-gradient(90deg, #fdfbf7 2px, transparent 2px), linear-gradient(rgba(212, 185, 150, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 150, 0.3) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
+            font-family: 'Noto Serif SC', serif;
+        }
+        
+        /* 评论区样式 */
+        .comment-bubble {
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .comment-meta {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-bottom: 2px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <!-- 1. Firebase Configuration (完全恢复原版) -->
+    <script>
+        // 核心：使用原始配置直连 Memories (London Inhale Project)
+        const firebaseConfig = {
+          apiKey: "AIzaSyBGp-AjGwAaKp4bCoqDoYZ51BCof4mCoo0",
+          authDomain: "london-inhale.firebaseapp.com",
+          projectId: "london-inhale",
+          storageBucket: "london-inhale.firebasestorage.app",
+          messagingSenderId: "94851508636",
+          appId: "1:94851508636:web:7d9d430f8dadef5c498059",
+          measurementId: "G-CBPE8MQT0F"
+        };
+
+        // Initialize Firebase (Compat)
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        // 移除 Auth，直接连接数据库
+    </script>
+
+    <!-- Intro -->
+    <div id="intro-screen">
+        <div class="hand-drawn-container p-10 max-w-2xl text-center shadow-2xl relative bg-white/90 border border-amber-100 mx-4">
+            <div class="absolute -top-6 -left-6 text-6xl text-amber-300 opacity-80 transform -rotate-12"><i class="fa-solid fa-cloud"></i></div>
+            
+            <button onclick="toggleLanguage()" class="absolute top-4 right-4 text-sm font-bold text-amber-800 hover:text-amber-600 border-b border-amber-200">
+                <i class="fa-solid fa-globe mr-1"></i> <span id="lang-btn-intro">English</span>
+            </button>
+
+            <h1 class="text-5xl font-bold text-slate-800 italic mb-4 font-serif text-amber-900" id="intro-title">London, Inhale</h1>
+            <div class="w-24 h-1 bg-amber-400 mx-auto mb-6 rounded-full"></div>
+            
+            <!-- Loading Status -->
+            <div id="loading-container">
+                <p class="text-xl text-slate-600 mb-4 font-serif leading-relaxed" id="intro-desc">Loading memories...</p>
+                <div class="text-amber-600 mb-8"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
+            </div>
+
+            <button id="start-btn" onclick="startExperience()" class="hidden bg-amber-700 text-white px-10 py-4 rounded-full text-lg shadow-lg hover:bg-amber-800 transition transform hover:scale-105 hand-drawn-btn border-amber-900">
+                <span id="intro-btn">Start</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+            <p class="text-xs text-slate-400 mt-6 uppercase tracking-widest">A Digital Humanities Project</p>
+        </div>
+    </div>
+
+    <canvas id="weather-canvas"></canvas>
+    
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="parchment-overlay"></div>
+    </div>
+
+    <!-- Top Left Header & Search -->
+    <div class="fixed top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none">
+        
+        <div class="flex flex-col gap-2 pointer-events-auto max-w-[70%] md:max-w-md">
+            <!-- Header Box -->
+            <div class="hand-drawn-container px-4 py-3 md:px-6 md:py-4 transition-all duration-300 group relative" id="header-box">
+                <button onclick="toggleLanguage()" class="absolute -top-2 -left-2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm border border-amber-300 hover:bg-amber-200">中/En</button>
+                <div class="flex justify-between items-center cursor-pointer" onclick="toggleHeader()">
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-slate-800 italic" id="header-title">London, Inhale</h1>
+                        <p class="text-[10px] md:text-xs text-slate-500 mt-0.5 uppercase tracking-widest" id="header-subtitle">气味 · 记忆 · 归属感</p>
+                    </div>
+                    <button class="text-slate-400 hover:text-amber-600 p-1 ml-2" id="header-toggle-icon"><i class="fa-solid fa-chevron-up"></i></button>
+                </div>
+                <div id="header-content" class="mt-3">
+                    <div id="daily-scent" class="p-2 bg-amber-50/50 rounded-lg border border-amber-100 cursor-pointer hover:bg-amber-100/80 transition text-xs md:text-sm">
+                        <div class="flex items-center gap-2 mb-1"><span class="text-[10px] font-bold text-amber-600 uppercase" id="daily-label">今日气味</span><i class="fa-solid fa-wind text-amber-400 text-xs"></i></div>
+                        <p id="daily-scent-text" class="italic text-slate-700">Collecting scents...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="hand-drawn-container flex items-center bg-white/90 p-1 search-container group" id="search-box">
+                <button class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-amber-600 shrink-0" onclick="toggleSearch()">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <input type="text" id="location-search-input" placeholder="搜索邮编/地名 (Search)..." class="bg-transparent border-none outline-none text-xs w-full px-2 font-serif text-slate-700 block" onfocus="this.parentElement.classList.add('expanded')" onblur="if(!this.value) this.parentElement.classList.remove('expanded')" onkeydown="if(event.key === 'Enter') searchLocation()">
+            </div>
+        </div>
+
+        <!-- Top Right Controls -->
+        <div class="flex flex-col gap-3 pointer-events-auto items-end relative">
+            <button onclick="toggleProfile()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative z-50 rounded-full" title="Profile"><i class="fa-regular fa-user text-slate-600"></i></button>
+            
+            <!-- NEW: Analysis Button -->
+            <button onclick="toggleAnalysis()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm rounded-full" title="Analysis">
+                <i class="fa-solid fa-chart-pie text-slate-600 hover:text-purple-600"></i>
+            </button>
+
+            <div class="relative">
+                <button onclick="toggleRouteMenu()" id="route-btn" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm rounded-full" title="Route"><i class="fa-solid fa-route text-slate-600"></i></button>
+                <div id="route-menu" class="route-menu" style="right: 3.5rem; top: 0;">
+                    <div class="p-3 bg-amber-50 border-b border-amber-200 flex justify-between items-center">
+                        <div><h3 class="text-xs font-bold text-amber-900" id="route-title">定制气味漫步路线</h3><p class="text-[9px] text-slate-500" id="route-desc">多选标签...</p></div>
+                        <button onclick="toggleRouteMenu()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="p-2 overflow-y-auto flex-grow space-y-2 no-scrollbar">
+                        <div id="route-menu-content"></div>
+                    </div>
+                    <div class="p-2 border-t border-amber-200 bg-amber-50">
+                        <button onclick="generateCustomRoute()" class="w-full bg-amber-700 text-white py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-amber-800 transition" id="route-gen-btn">生成路线 ✨</button>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="toggleHeatmap()" id="heatmap-btn" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative rounded-full" title="Heatmap"><i class="fa-solid fa-fire-flame-curved text-slate-600"></i></button>
+        </div>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="fixed bottom-6 left-4 right-4 z-[1000] flex justify-between items-end pointer-events-none">
+        <!-- Bottom Left: Filters -->
+        <div class="relative pointer-events-auto">
+            <div id="filter-popup" class="hidden absolute bottom-14 left-0 w-64 hand-drawn-container p-4 mb-2 origin-bottom-left z-20 bg-white/95">
+                 <div class="flex justify-between items-center mb-3">
+                    <h3 class="serif font-bold text-slate-700 text-sm"><i class="fa-solid fa-filter mr-2"></i><span id="filter-title">Filter</span></h3>
+                    <button onclick="toggleFilterPopup()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
+                    <div id="filter-dynamic-content"></div>
+                    <button onclick="resetFilters()" class="w-full mt-2 py-2 text-xs text-slate-500 hover:text-slate-800 border-t border-amber-200/50" id="reset-btn">Reset</button>
+                </div>
+            </div>
+
+            <button onclick="toggleFilterPopup()" class="hand-drawn-container px-4 py-3 flex items-center gap-2 shadow-lg hover:scale-105 transition active:scale-95 bg-white/90 rounded-full group">
+                <i class="fa-solid fa-filter text-slate-500 group-hover:text-amber-600"></i>
+                <span class="text-sm font-bold text-slate-600 hidden md:inline">Filters</span>
+            </button>
+        </div>
+
+        <!-- Bottom Right: Upload -->
+        <div class="pointer-events-auto">
+            <button onclick="startUploadProcess()" class="bg-amber-700 text-white px-5 py-3 md:px-8 md:py-4 rounded-full shadow-xl hover:bg-amber-800 hover:scale-105 transition flex items-center gap-2 font-serif italic text-base hand-drawn-btn border-amber-800">
+                <i class="fa-solid fa-plus text-lg"></i>
+                <span id="upload-main-btn" class="font-bold">Memory</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-2xl overflow-hidden relative min-h-[500px] flex flex-col bg-amber-50/95">
+            <button onclick="closeUploadModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10 pointer-events-auto"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="h-1 bg-amber-100 w-full"><div id="progress-bar" class="h-full bg-amber-500 w-1/6 transition-all duration-300"></div></div>
+            <div class="p-8 flex-grow flex flex-col justify-center relative pointer-events-auto" id="wizard-content"></div>
+            <div class="bg-amber-50/50 p-6 flex justify-between items-center border-t border-amber-100 pointer-events-auto">
+                <button id="prev-btn" onclick="prevStep()" class="text-slate-400 hover:text-slate-600 font-medium px-4 py-2 disabled:opacity-0 transition"><i class="fa-solid fa-arrow-left mr-2"></i>上一步</button>
+                <div class="flex gap-2" id="step-dots"></div>
+                <button id="next-btn" onclick="nextStep()" class="bg-amber-700 text-white px-6 py-2 rounded-full hover:bg-amber-800 transition shadow-lg hand-drawn-btn disabled:opacity-50 disabled:cursor-not-allowed">下一步</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col">
+        <button onclick="closeDetailPanel()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-arrow-right-long text-xl"></i></button>
+        <div id="detail-content" class="mt-8 mb-4 flex-grow overflow-y-auto"></div>
+        <div class="p-4 bg-amber-100/80 border-t border-amber-200 backdrop-blur-sm -mx-6 -mb-6 flex gap-2">
+            <input type="text" id="comment-input" class="flex-grow p-2 rounded-lg border border-amber-300 bg-white/80 text-sm" placeholder="Write a comment...">
+            <button id="send-comment-btn" onclick="sendComment()" class="bg-amber-600 text-white p-2 rounded-lg hover:bg-amber-700 text-sm">Send</button>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-lg min-h-[500px] max-h-[80vh] flex flex-col bg-amber-50/95 relative">
+            <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="p-6 border-b border-amber-200 bg-amber-100/30 flex flex-col items-center">
+                <div class="relative group mb-2 w-20 h-20">
+                    <div class="w-full h-full rounded-full bg-amber-200 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+                        <span class="text-3xl">👤</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                     <h2 class="text-xl font-bold text-slate-800 border-b border-dashed border-transparent hover:border-slate-400 cursor-text px-1" contenteditable="true" id="profile-name" oninput="updateUserName(this.innerText)">Guest User</h2>
+                     <i class="fa-solid fa-pen text-slate-400 text-xs"></i>
+                </div>
+                <p class="text-xs text-slate-500 mt-1" id="user-id-display">ID: ...</p>
+            </div>
+            <div class="flex border-b border-amber-200">
+                <button onclick="switchProfileTab('uploads')" id="tab-uploads" class="flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50">My Uploads</button>
+                <button class="flex-1 py-3 text-sm font-bold text-slate-400 cursor-not-allowed">Messages (Dev)</button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-4" id="profile-content"></div>
+        </div>
+    </div>
+
+    <!-- NEW: Analysis & Stats Modal (Refined) -->
+    <div id="analysis-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-4xl max-h-[90vh] flex flex-col bg-amber-50/98 relative overflow-hidden">
+            <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            
+            <div class="p-6 border-b border-amber-200 bg-amber-100/50">
+                <h2 class="text-2xl font-serif font-bold text-amber-900"><i class="fa-solid fa-magnifying-glass-chart mr-2"></i>Scent Insights</h2>
+                <p class="text-xs text-slate-500 uppercase tracking-widest mt-1">Data Visualization & Smart Report</p>
+            </div>
+
+            <div class="flex-grow overflow-y-auto p-6 space-y-6 no-scrollbar">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Cultural Insight Section -->
+                    <div class="chart-card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-slate-700 text-sm">Category Frequency</h3>
+                            <select id="analysis-culture-select" onchange="updateCultureChart()" class="text-xs border border-amber-300 rounded-md p-1 bg-white text-slate-600 outline-none">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="h-48 w-full relative">
+                            <canvas id="culture-scent-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Smart Keyword Clustering -->
+                    <div class="chart-card flex flex-col">
+                        <h3 class="font-bold text-slate-700 text-sm mb-4">Trending Scent Keywords</h3>
+                        <div id="keyword-cloud" class="flex-grow bg-white/50 rounded-lg p-3 border border-amber-100 flex flex-wrap content-start gap-1 overflow-y-auto max-h-48">
+                            <!-- Dynamic Keywords go here -->
+                            <span class="text-xs text-slate-400 italic">Select a culture to analyze specific keywords...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generated Report -->
+                <div class="chart-card report-box bg-white p-4 relative">
+                    <i class="fa-solid fa-quote-left text-4xl text-amber-200 absolute top-2 left-2 opacity-50"></i>
+                    <h3 class="font-bold text-amber-900 text-sm mb-2 relative z-10 font-serif">Cultural Olfactory Report</h3>
+                    <div id="cultural-report-text" class="text-sm text-slate-700 leading-relaxed italic relative z-10 font-serif">
+                        Loading analysis...
+                    </div>
+                </div>
+
+                <!-- Emotion Distribution -->
+                <div class="chart-card">
+                    <h3 class="font-bold text-slate-700 text-sm mb-4">City Mood Distribution</h3>
+                    <div class="h-48 w-full relative flex justify-center">
+                        <canvas id="emotion-chart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="p-4 border-t border-amber-200 bg-amber-100/30">
+                <button onclick="exportDataAsCSV()" class="w-full py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-csv text-green-400"></i> Download Data (CSV)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="hand-drawn-container bg-white p-6 max-w-xs text-center">
+            <h3 class="font-bold text-lg mb-2 text-slate-800">Delete Memory?</h3>
+            <p class="text-sm text-slate-600 mb-6">This action cannot be undone.</p>
+            <div class="flex gap-2 justify-center">
+                <button onclick="document.getElementById('confirm-modal').classList.add('hidden')" class="px-4 py-2 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">Cancel</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 shadow text-sm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed top-24 right-4 hand-drawn-container px-4 py-3 shadow-xl translate-x-full transition-transform duration-300 z-[3000] flex items-center gap-3 max-w-sm bg-amber-100/90 border-amber-300">
+        <i class="fa-solid fa-bell text-amber-500"></i><div class="text-sm"><p class="font-bold text-amber-800" id="toast-title">Hint</p><p class="opacity-80 text-amber-700" id="toast-msg">...</p></div>
+    </div>
+
+    <script>
+        // 配置数据
+        const translations = {
+            zh: {
+                introTitle: "London, Inhale", introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。<br>数据加载中...", startBtn: "开启探索", langBtn: "Switch to English",
+                title: "London, Inhale", subtitle: "气味 · 记忆 · 归属感", dailyScent: "今日气味",
+                routeTitle: "定制气味漫步路线", routeDesc: "多选标签，生成步行路线", emotion: "情绪", culture: "文化背景", scent: "气味类别", selectAll: "全选", generate: "生成路线 ✨",
+                filterTitle: "气味记忆分类", reset: "重置条件", upload: "上传记忆",
+                myProfile: "我的档案", myUploads: "我的发布", messages: "消息",
+                step1Title: "选择地点", step1Desc: "鼠标已变为图钉模式，请点击地图。", step2Title: "你的文化背景", step3Title: "气味详情 (可多选)", step4Title: "那一刻的情绪", step5Title: "强度与记忆", step6Title: "故事与图片",
+                prev: "上一步", next: "下一步", complete: "完成上传", update: "更新记忆", intensity: "气味强度", memory: "记忆深刻程度",
+                weak: "弱", strong: "强", vague: "模糊", deep: "刻骨", comments: "评论", send: "发送",
+                storyHolder: "讲述这段气味背后的故事...", heatmapMode: "实感热力图", heatmapDesc: "颜色交融，金色共鸣", normalMode: "普通模式", normalDesc: "返回标记模式", aiTitle: "AI 分析", theme: "主题",
+                resonance: "发现文化共鸣", resonanceDesc: "不同文化在此处产生交集", chatWith: "对话: ", back: "返回",
+                noRoute: "附近没有足够的点", routeFound: "已生成最佳路线",
+                waiting: "(等待点击...)", namePlaceholder: "例如：雨后的青草", selectCat: "选择气味类别", addPhoto: "点击添加图片",
+                uploadToastTitle: "开始上传", uploadToastMsg: "请在地图上点击你闻到气味的位置",
+                successToast: "上传成功", successMsg: "你的气味记忆已添加到伦敦地图中。", processing: "处理中...",
+                searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中..."
+            },
+            en: {
+                introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.<br>Loading data...", startBtn: "Start Exploring", langBtn: "切换到中文",
+                title: "London, Inhale", subtitle: "Scent · Memory · Belonging", dailyScent: "Daily Scent",
+                routeTitle: "Custom Route", routeDesc: "Select tags for walking route", emotion: "Emotion", culture: "Culture", scent: "Scent", selectAll: "Select All", generate: "Generate ✨",
+                filterTitle: "Filters", reset: "Reset", upload: "Memory",
+                myProfile: "Profile", myUploads: "Uploads", messages: "Messages",
+                step1Title: "Select Location", step1Desc: "Map is in pin mode. Please click on the map.", step2Title: "Your Cultural Background", step3Title: "Scent Details (Multi-select)", step4Title: "Emotion at that Moment", step5Title: "Intensity & Memory", step6Title: "Story & Image",
+                prev: "Back", next: "Next", complete: "Submit", update: "Update Memory", intensity: "Scent Intensity", memory: "Memory Depth",
+                weak: "Weak", strong: "Strong", vague: "Vague", deep: "Deep", comments: "Comments", send: "Send",
+                storyHolder: "Tell the story behind this scent...", heatmapMode: "Solid Heatmap", heatmapDesc: "Color reflects culture, gold reflects resonance", normalMode: "Normal Mode", normalDesc: "Marker mode", aiTitle: "AI Analysis", theme: "Theme",
+                resonance: "Cultural Resonance", resonanceDesc: "Intersection of different cultures detected", chatWith: "Chat with: ", back: "Back",
+                noRoute: "Not enough points nearby", routeFound: "Best route generated",
+                waiting: "(Waiting for click...)", namePlaceholder: "E.g., Rain on grass", selectCat: "Select Scent Category", addPhoto: "Add Photo",
+                uploadToastTitle: "Start Upload", uploadToastMsg: "Please click the location on the map.",
+                successToast: "Upload Success", successMsg: "Your scent memory has been added to the London map.", processing: "Processing...",
+                searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating..."
+            }
+        };
+
+        let currentLang = 'zh';
+        const categories = { 'Floral': { color: '#F4A4A4', label: '花香调', en: 'Floral' }, 'Fruity': { color: '#F7C5A0', label: '果香调', en: 'Fruity' }, 'Woody': { color: '#D4B996', label: '木质调', en: 'Woody' }, 'Fresh': { color: '#A0C4FF', label: '清新调', en: 'Fresh' }, 'Sweet': { color: '#FCEEB5', label: '甜食', en: 'Sweet' }, 'Food': { color: '#FF8C8C', label: '食物', en: 'Food' }, 'Burnt': { color: '#B0B7C0', label: '焦味', en: 'Burnt' }, 'Mall': { color: '#DCD0FF', label: '商场', en: 'Mall' }, 'Dusty': { color: '#C7C1BD', label: '尘土', en: 'Dusty' }, 'Animalic': { color: '#A67B5B', label: '动物', en: 'Animalic' }, 'Rotten': { color: '#4A4A4A', label: '腐烂', en: 'Rotten' } };
+        // 增加厌恶
+        const emotions = [ { label: '温暖', en: 'Warm', emoji: '🥰' }, { label: '怀旧', en: 'Nostalgic', emoji: '🧸' }, { label: '平静', en: 'Calm', emoji: '😌' }, { label: '喜悦', en: 'Joyful', emoji: '🥳' }, { label: '惊讶', en: 'Surprised', emoji: '😲' }, { label: '悲伤', en: 'Sad', emoji: '🥺' }, { label: '不安', en: 'Anxious', emoji: '😰' }, { label: '愤怒', en: 'Angry', emoji: '😡' }, { label: '疲惫', en: 'Tired', emoji: '😫' }, { label: '迷茫', en: 'Lost', emoji: '😵‍💫' }, { label: '害怕', en: 'Scared', emoji: '😖' }, { label: '厌恶', en: 'Disgust', emoji: '🤢' } ];
+        const cultures = [ 
+            { id: 'British', label: '英国', en: 'British', color: '#3b82f6' }, 
+            { id: 'Chinese', label: '中国', en: 'Chinese', color: '#ef4444' }, 
+            { id: 'Indian', label: '印度', en: 'Indian', color: '#f97316' }, 
+            { id: 'Pakistani', label: '巴基斯坦', en: 'Pakistani', color: '#10b981' }, 
+            { id: 'Bangladeshi', label: '孟加拉', en: 'Bangladeshi', color: '#06b6d4' }, 
+            { id: 'African', label: '非洲', en: 'African', color: '#8b5cf6' }, 
+            { id: 'Caribbean', label: '加勒比', en: 'Caribbean', color: '#eab308' }, 
+            { id: 'Middle Eastern', label: '中东', en: 'Middle Eastern', color: '#ec4899' }, 
+            { id: 'Mixed', label: '混合', en: 'Mixed', color: '#64748b' }, 
+            { id: 'Other', label: '其他', en: 'Other', color: '#94a3b8' } 
+        ];
+
+        let memories = [], myUploads = [];
+        let map, markersLayer = new L.LayerGroup(), heatLayerGroup = new L.LayerGroup(), resonanceLayer = new L.LayerGroup(), pathLayer = new L.LayerGroup(), territoryLayer = new L.LayerGroup();
+        let searchLayer = new L.LayerGroup(); 
+        let currentStep = 1, uploadData = { categories: [] }, tempMarker = null;
+        let activeFilters = { cultures: [], emotions: [], categories: [] }, routeCriteria = { emotions: [], cultures: [], categories: [] };
+        let isHeatmapMode = false;
+        let isDataLoaded = false;
+        let editingId = null; // 用于编辑模式的 ID
+
+        // --- 用户身份逻辑 (LocalStorage) ---
+        // 恢复随机ID逻辑，但保留持久性
+        let myUserId = localStorage.getItem('london_inhale_uid');
+        if (!myUserId) {
+            myUserId = 'user-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+            localStorage.setItem('london_inhale_uid', myUserId);
+        }
+        
+        let myUserName = localStorage.getItem('london_inhale_name') || "Guest User";
+        
+        // 核心修改：移除 Auth 初始化
+        window.onload = function() {
+            initMap();
+            setupRealtimeListener(); 
+            updateProfileUI();
+            safeUpdateTexts(); 
+            // initWeatherEffect(); // 暂时关闭天气以提高性能，如有需要可取消注释
+        };
+
+        // --- Firebase 核心监听 ---
+        function setupRealtimeListener() {
+            // 核心修改：使用根集合 memories，直接对应您的数据库项目设置
+            db.collection("memories").orderBy('timestamp', 'desc').onSnapshot((snapshot) => {
+                memories = [];
+                snapshot.forEach((doc) => {
+                    memories.push({ id: doc.id, ...doc.data() });
+                });
+                
+                isDataLoaded = true;
+                
+                // 更新 UI 状态
+                const introDesc = document.getElementById('intro-desc');
+                const loadingContainer = document.getElementById('loading-container');
+                const startBtn = document.getElementById('start-btn');
+                
+                if(introDesc) introDesc.innerHTML = currentLang === 'zh' ? 
+                    `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
+                    `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
+                
+                if(loadingContainer) loadingContainer.style.display = 'none';
+                if(startBtn) startBtn.classList.remove('hidden');
+
+                renderMarkers();
+                renderDailyScent();
+                // 仅当用户在个人档案页面时才更新
+                if(!document.getElementById('profile-modal').classList.contains('hidden')) {
+                    switchProfileTab('uploads');
+                }
+                
+                // 如果详情页打开着，实时刷新评论
+                const detailContent = document.getElementById('detail-content');
+                if (detailContent && detailContent.hasAttribute('data-memory-id')) {
+                    const activeId = detailContent.getAttribute('data-memory-id');
+                    const updatedMem = memories.find(m => m.id === activeId);
+                    if (updatedMem) {
+                        renderDetailContent(updatedMem);
+                    }
+                }
+            }, (error) => {
+                console.error("Error getting memories:", error);
+            });
+        }
+
+        // --- NEW: Analysis Logic ---
+        var cultureChart = null; // Changed from let to var to avoid re-declaration errors
+        var emotionChart = null; // Changed from let to var
+
+        function toggleAnalysis() {
+            const modal = document.getElementById('analysis-modal');
+            modal.classList.remove('hidden');
+            
+            // Populate Culture Select
+            const select = document.getElementById('analysis-culture-select');
+            select.innerHTML = cultures.map(c => `<option value="${c.id}">${currentLang==='en'?c.en:c.label}</option>`).join('');
+            
+            // Init Charts
+            setTimeout(() => {
+                updateCultureChart();
+                updateEmotionChart();
+            }, 100);
+        }
+
+        // --- 核心更新：智能关键词分析与报告生成 ---
+        function updateCultureChart() {
+            const selectedCultureId = document.getElementById('analysis-culture-select').value;
+            const selectedCultureLabel = cultures.find(c => c.id === selectedCultureId)?.[currentLang==='en'?'en':'label'];
+            const filtered = memories.filter(m => m.culture === selectedCultureId);
+            
+            // 1. 常规分类统计
+            const catCounts = {};
+            Object.keys(categories).forEach(k => catCounts[k] = 0);
+            const emotionCounts = {}; // Local emotion count for this culture
+            
+            filtered.forEach(m => {
+                if(m.categories) m.categories.forEach(c => { if(catCounts[c] !== undefined) catCounts[c]++; });
+                if(m.emotion) { emotionCounts[m.emotion] = (emotionCounts[m.emotion] || 0) + 1; }
+            });
+
+            // 2. 智能关键词统计 (Smart Clustering)
+            const stopWords = ['the', 'a', 'an', 'of', 'in', 'and', 'with', 'smell', 'scent', 'like', 'is', 'de', 'le', 'la', '的', '味', '气味', '味道', '香'];
+            const wordCounts = {};
+            
+            filtered.forEach(m => {
+                // 简单分词逻辑：转小写，移除标点，按空格分割
+                const cleanName = (m.name || "").toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                const tokens = cleanName.split(/\s+/);
+                
+                tokens.forEach(token => {
+                    if(token.length > 1 && !stopWords.includes(token)) {
+                        // 简单的归一化: cold/chilly -> cold (这里做模拟，实际需要更复杂的NLP)
+                        // 为简单起见，这里只统计完全匹配
+                        wordCounts[token] = (wordCounts[token] || 0) + 1;
+                    }
+                });
+            });
+
+            // Get Top Keywords
+            const sortedKeywords = Object.entries(wordCounts).sort((a,b) => b[1] - a[1]).slice(0, 8);
+            const keywordCloud = document.getElementById('keyword-cloud');
+            if(sortedKeywords.length > 0) {
+                keywordCloud.innerHTML = sortedKeywords.map(([word, count]) => {
+                    const size = 0.7 + (Math.min(count, 5) * 0.1); // Scale font size
+                    return `<span class="analysis-tag" style="font-size: ${size}rem">${word} (${count})</span>`;
+                }).join('');
+            } else {
+                keywordCloud.innerHTML = '<span class="text-xs text-slate-400 italic">No specific keywords found yet.</span>';
+            }
+
+            // 3. Update Chart
+            const ctx = document.getElementById('culture-scent-chart').getContext('2d');
+            const dataVals = Object.keys(catCounts).map(k => catCounts[k]);
+            const labels = Object.keys(catCounts).map(k => currentLang==='en' ? categories[k].en : categories[k].label);
+            const bgColors = Object.keys(catCounts).map(k => categories[k].color);
+
+            if(cultureChart) cultureChart.destroy();
+            
+            cultureChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frequency',
+                        data: dataVals,
+                        backgroundColor: bgColors,
+                        borderWidth: 1,
+                        borderColor: '#d4b996'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+
+            // 4. Generate Report (The "AI" part)
+            generateCulturalReport(selectedCultureLabel, catCounts, sortedKeywords, emotionCounts, filtered.length);
+        }
+
+        function generateCulturalReport(cultureName, catCounts, topKeywords, emoCounts, totalCount) {
+            const reportBox = document.getElementById('cultural-report-text');
+            if(totalCount === 0) {
+                reportBox.innerHTML = "Not enough data to generate a report for this culture.";
+                return;
+            }
+
+            // Find top category
+            let topCat = Object.entries(catCounts).sort((a,b) => b[1] - a[1])[0];
+            const topCatName = topCat ? (currentLang==='en'?categories[topCat[0]].en : categories[topCat[0]].label) : "None";
+
+            // Find top emotion
+            let topEmo = Object.entries(emoCounts).sort((a,b) => b[1] - a[1])[0];
+            // Try to translate emotion if possible, or use raw
+            let topEmoName = "Mixed";
+            if(topEmo) {
+                const eObj = emotions.find(e => e.label === topEmo[0] || e.en === topEmo[0]);
+                topEmoName = eObj ? (currentLang==='en'?eObj.en:eObj.label) : topEmo[0];
+            }
+
+            // Construct Text
+            let text = "";
+            if (currentLang === 'zh') {
+                text = `在 <b>${cultureName}</b> 的文化图景中，共收集了 ${totalCount} 条气味记忆。
+                数据表明，该群体对 <b>${topCatName}</b> 类的气味最为敏感。
+                ${topKeywords.length > 0 ? `在具体描述中，<b>“${topKeywords[0][0]}”</b> 是出现频率最高的词汇，这暗示了该气味在该文化记忆中的独特性。` : ""}
+                总体而言，这些气味唤起的主要情绪是 <b>${topEmoName}</b>。`;
+            } else {
+                text = `In the olfactory landscape of <b>${cultureName}</b> culture (based on ${totalCount} entries), 
+                <b>${topCatName}</b> scents are most predominant. 
+                ${topKeywords.length > 0 ? `The specific descriptor <b>"${topKeywords[0][0]}"</b> appears frequently, highlighting a unique cultural marker.` : ""}
+                Overall, the prevailing emotion evoked by these scents is <b>${topEmoName}</b>.`;
+            }
+            
+            reportBox.innerHTML = text;
+        }
+
+        function updateEmotionChart() {
+            const counts = {};
+            emotions.forEach(e => counts[e.label] = 0);
+            memories.forEach(m => {
+                const em = emotions.find(e => e.label === m.emotion || e.en === m.emotion);
+                if(em) counts[em.label]++;
+            });
+
+            const ctx = document.getElementById('emotion-chart').getContext('2d');
+            const dataVals = emotions.map(e => counts[e.label]);
+            const labels = emotions.map(e => `${e.emoji} ${currentLang==='en'?e.en:e.label}`);
+            
+            if(emotionChart) emotionChart.destroy();
+
+            emotionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataVals,
+                        backgroundColor: ['#fca5a5', '#fdba74', '#fde047', '#86efac', '#67e8f9', '#93c5fd', '#c4b5fd', '#f0abfc', '#cbd5e1', '#94a3b8', '#475569', '#4d7c0f'], // Added color for Disgust
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function exportDataAsCSV() {
+            if(!memories || memories.length === 0) {
+                showToast("Export", "No data to export.");
+                return;
+            }
+            const headers = ["ID", "Name (CN)", "Name (EN)", "Culture", "Categories", "Emotion", "Intensity", "Date", "Lat", "Lng", "Story"];
+            const rows = memories.map(m => {
+                const cats = m.categories ? m.categories.join(";") : "";
+                const cleanStory = (m.story || "").replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""'); 
+                return [
+                    m.id, `"${m.name || ''}"`, `"${m.nameEn || ''}"`, m.culture, `"${cats}"`, m.emotion, m.intensity, m.date, m.lat, m.lng, `"${cleanStory}"`
+                ].join(",");
+            });
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "london_inhale_memories.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function startExperience() {
+            const intro = document.getElementById('intro-screen');
+            intro.style.opacity = '0';
+            setTimeout(() => {
+                intro.style.display = 'none';
+                initUI();
+            }, 800);
+        }
+
+        function getText(key) { return translations[currentLang][key] || key; }
+        function safeSetText(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; }
+        function safeSetHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+        
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            safeUpdateTexts();
+            if(!document.getElementById('analysis-modal').classList.contains('hidden')) {
+                updateCultureChart();
+                updateEmotionChart();
+            }
+        }
+
+        function safeUpdateTexts() {
+            safeSetHTML('intro-title', getText('introTitle'));
+            if(isDataLoaded) {
+                 const introDesc = document.getElementById('intro-desc');
+                 if(introDesc) introDesc.innerHTML = currentLang === 'zh' ? 
+                    `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
+                    `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
+            } else {
+                 safeSetHTML('intro-desc', getText('introDesc'));
+            }
+            safeSetText('intro-btn', getText('startBtn'));
+            safeSetText('lang-btn-intro', getText('langBtn'));
+            safeSetText('header-title', getText('title'));
+            safeSetText('header-subtitle', getText('subtitle'));
+            safeSetText('daily-label', getText('dailyScent'));
+            safeSetText('route-title', getText('routeTitle'));
+            safeSetText('route-desc', getText('routeDesc'));
+            safeSetText('route-gen-btn', getText('generate'));
+            safeSetText('filter-title', getText('filterTitle'));
+            safeSetText('reset-btn', getText('reset'));
+            safeSetText('upload-main-btn', getText('upload'));
+            safeSetText('tab-uploads', getText('myUploads'));
+            document.getElementById('location-search-input').placeholder = getText('searchPlaceholder');
+            renderFilters();
+            renderRouteMenu();
+            renderDailyScent();
+        }
+
+        function initWeatherEffect() {
+            // ... (keeping weather logic commented out if performance is a concern, or uncomment to enable)
+            const canvas = document.getElementById('weather-canvas');
+            if (!canvas) return; 
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let raindrops = [];
+            for (let i = 0; i < 100; i++) raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, length: Math.random() * 20 + 10, opacity: Math.random() * 0.5 + 0.2, speed: Math.random() * 10 + 5 });
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = 'rgba(173, 216, 230, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = 0; i < raindrops.length; i++) {
+                    let d = raindrops[i];
+                    ctx.moveTo(d.x, d.y);
+                    ctx.lineTo(d.x, d.y + d.length);
+                    d.y += d.speed;
+                    if (d.y > canvas.height) { d.y = -d.length; d.x = Math.random() * canvas.width; }
+                }
+                ctx.stroke();
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        function toggleFilterPopup() {
+            const popup = document.getElementById('filter-popup');
+            popup.classList.toggle('hidden');
+        }
+
+        function renderFilters() {
+            const dynamicContent = document.getElementById('filter-dynamic-content');
+            if(!dynamicContent) return;
+            dynamicContent.innerHTML = '';
+            const createSection = (title, type, items) => {
+                const div = document.createElement('div');
+                div.className = 'mb-2';
+                div.innerHTML = `<div class="flex justify-between items-center mb-1"><label class="text-[10px] font-bold text-slate-400 uppercase">${title}</label><button onclick="toggleAllFilters('${type}')" class="text-[10px] text-amber-600 hover:text-amber-800">${getText('selectAll')}</button></div><div class="flex flex-wrap gap-1" id="${type}-filters-inner"></div>`;
+                dynamicContent.appendChild(div);
+                const inner = div.querySelector(`#${type}-filters-inner`);
+                items.forEach(item => {
+                    const btn = document.createElement('button');
+                    const label = type==='categories' ? (currentLang==='en'?item.val.en:item.val.label) : (type==='cultures'?(currentLang==='en'?item.en:item.label):(currentLang==='en'?item.en:item.label));
+                    const emoji = item.emoji ? item.emoji : '';
+                    const color = item.val?.color;
+                    const cultureColor = item.color ? `<span class="w-2 h-2 rounded-full" style="background:${item.color}"></span>` : '';
+                    
+                    btn.className = 'px-2 py-1 rounded-full text-[10px] border border-amber-200 text-slate-600 hover:bg-amber-50 transition filter-btn hand-drawn-btn flex items-center gap-1';
+                    btn.innerHTML = `${color ? `<span class="w-2 h-2 rounded-full" style="background:${color}"></span>` : cultureColor} ${emoji} ${label}`;
+                    btn.onclick = () => toggleFilter(type, item.key || item.id || item.label, btn);
+                    inner.appendChild(btn);
+                });
+            };
+            createSection(getText('scent'), 'categories', Object.entries(categories).map(([k,v])=>({key:k, val:v})));
+            createSection(getText('culture'), 'cultures', cultures);
+            createSection(getText('emotion'), 'emotions', emotions);
+        }
+
+        function renderRouteMenu() {
+            const content = document.getElementById('route-menu-content');
+            if(!content) return;
+            content.innerHTML = '';
+            const createSection = (title, type, items) => {
+                const div = document.createElement('div');
+                div.innerHTML = `<div class="flex justify-between items-center mb-1"><p class="text-[9px] font-bold text-slate-400">${title}</p><button onclick="toggleAllRouteCriteria('${type}')" class="text-[8px] text-amber-600 hover:underline">${getText('selectAll')}</button></div><div class="flex flex-wrap gap-1" id="route-${type}-inner"></div>`;
+                content.appendChild(div);
+                const inner = div.querySelector(`#route-${type}-inner`);
+                items.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'route-option-chip';
+                    const label = type==='categories' ? (currentLang==='en'?item.val.en:item.val.label) : (type==='cultures'?(currentLang==='en'?item.en:item.label):(currentLang==='en'?item.en:item.label));
+                    el.innerText = label;
+                    const val = item.key || item.id || item.label;
+                    el.onclick = () => toggleRouteCriteria(type, val, el);
+                    inner.appendChild(el);
+                });
+            };
+            createSection(getText('emotion'), 'emotions', emotions);
+            createSection(getText('culture'), 'cultures', cultures);
+            createSection(getText('scent'), 'categories', Object.entries(categories).map(([k,v])=>({key:k, val:v})));
+        }
+
+        // --- Logic ---
+        function toggleFilter(type, value, btn) {
+            const idx = activeFilters[type].indexOf(value);
+            if(idx > -1) { activeFilters[type].splice(idx, 1); btn.classList.remove('active'); }
+            else { activeFilters[type].push(value); btn.classList.add('active'); }
+            renderMarkers();
+        }
+        function toggleAllFilters(type) {
+            let all = [];
+            if(type==='cultures') all = cultures.map(c=>c.id);
+            else if(type==='emotions') all = emotions.map(e=>e.label);
+            else all = Object.keys(categories);
+            const isAll = activeFilters[type].length === all.length;
+            const btns = document.getElementById(`${type}-filters-inner`).querySelectorAll('button');
+            if(isAll) { activeFilters[type] = []; btns.forEach(b=>b.classList.remove('active')); }
+            else { activeFilters[type] = [...all]; btns.forEach(b=>b.classList.add('active')); }
+            renderMarkers();
+        }
+        function resetFilters() { activeFilters = { cultures: [], emotions: [], categories: [] }; renderFilters(); renderMarkers(); }
+
+        function toggleRouteCriteria(type, val, el) {
+            const list = routeCriteria[type];
+            const idx = list.indexOf(val);
+            if(idx > -1) { list.splice(idx, 1); el.classList.remove('selected'); }
+            else { list.push(val); el.classList.add('selected'); }
+        }
+        function toggleAllRouteCriteria(type) {
+            let all = [];
+            if(type==='cultures') all = cultures.map(c=>c.id); 
+            else if(type==='emotions') all = emotions.map(e=>e.label);
+            else all = Object.keys(categories);
+            const list = routeCriteria[type];
+            const container = document.getElementById(`route-${type}-inner`);
+            const chips = container.querySelectorAll('.route-option-chip');
+            const isAll = list.length === all.length;
+            if(isAll) { routeCriteria[type] = []; chips.forEach(c=>c.classList.remove('selected')); }
+            else { routeCriteria[type] = [...all]; chips.forEach(c=>c.classList.add('selected')); }
+        }
+
+        // --- Map Logic ---
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.505, -0.09], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, opacity: 0.9 }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            heatLayerGroup.addTo(map); markersLayer.addTo(map); pathLayer.addTo(map); resonanceLayer.addTo(map);
+            searchLayer.addTo(map); // Add search layer
+            
+            map.on('click', (e) => { 
+                document.getElementById('route-menu').style.display = 'none';
+                document.getElementById('filter-popup').classList.add('hidden');
+                document.getElementById('search-box').classList.remove('expanded'); 
+                searchLayer.clearLayers(); // Clear search circle on map click
+                
+                if(document.getElementById('upload-modal').classList.contains('hidden') === false && currentStep === 1) {
+                    handleMapClickForUpload(e.latlng);
+                }
+            });
+        }
+
+        // --- NEW: Location Search Function ---
+        function toggleSearch() {
+            document.getElementById('search-box').classList.toggle('expanded');
+            document.getElementById('location-search-input').focus();
+        }
+
+        function searchLocation() {
+            const query = document.getElementById('location-search-input').value;
+            if (!query) return;
+
+            // Simple nominatim search limited to UK preference
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=gb&limit=1`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    return res.json();
+                })
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lon = parseFloat(data[0].lon);
+                        const latlng = [lat, lon];
+                        map.flyTo(latlng, 15);
+                        
+                        // Clear old search results
+                        searchLayer.clearLayers();
+                        
+                        // Draw hand-drawn style circle
+                        // 修正：interactive: false 解决点击问题
+                        L.circle(latlng, {
+                            color: '#d97706', // Amber-600
+                            fillColor: '#fcd34d',
+                            fillOpacity: 0.1,
+                            radius: 300,
+                            weight: 2,
+                            dashArray: '8, 8',
+                            className: 'search-circle',
+                            interactive: false // 关键：不允许交互，让点击穿透到地图
+                        }).addTo(searchLayer).bindPopup("<b>Found Area</b>"); // remove openPopup to keep it clean
+
+                        showToast("Search", getText('locationFound') + ": " + (data[0].display_name.split(',')[0]));
+                    } else {
+                        showToast("Search", "Location not found");
+                    }
+                })
+                .catch(err => {
+                    console.warn("Search failed:", err);
+                    showToast("Error", "Search unavailable at this moment");
+                });
+        }
+
+        function getFilteredMemories() {
+            return memories.filter(m => {
+                const cM = activeFilters.cultures.length===0 || activeFilters.cultures.includes(m.culture);
+                const eM = activeFilters.emotions.length===0 || activeFilters.emotions.includes(m.emotion);
+                const catM = activeFilters.categories.length===0 || (m.categories && m.categories.some(c=>activeFilters.categories.includes(c)));
+                return cM && eM && catM;
+            });
+        }
+
+        function renderMarkers() {
+            if(isHeatmapMode) { renderMultiLayerHeatmap(); return; }
+            markersLayer.clearLayers(); heatLayerGroup.clearLayers(); resonanceLayer.clearLayers(); territoryLayer.clearLayers();
+            const filtered = getFilteredMemories();
+            
+            if (activeFilters.cultures.length > 0) {
+                document.getElementById('map-container').classList.add('parchment-mode');
+                const overlay = document.getElementById('parchment-overlay');
+                if(overlay) overlay.style.opacity = 0.5;
+            } else {
+                document.getElementById('map-container').classList.remove('parchment-mode');
+                const overlay = document.getElementById('parchment-overlay');
+                if(overlay) overlay.style.opacity = 0;
+            }
+
+            filtered.forEach(m => {
+                const cat = (m.categories && m.categories[0]) ? m.categories[0] : 'Fresh';
+                const color = categories[cat]?.color || '#999';
+                const size = 22 + ((m.intensity || 3) * 6); 
+                const emojiSize = size * 0.55;
+                const isMine = m.authorId === myUserId; // Check ownership
+
+                // 添加 is-mine 类名如果是我自己的
+                const iconClass = `smell-marker ${isMine ? 'is-mine' : ''}`;
+
+                const icon = L.divIcon({
+                    className: iconClass,
+                    html: `<div style="position: relative; width: ${size}px; height: ${size}px;"><div class="pulse-ring" style="color: ${color}"></div><div class="custom-icon-inner flex items-center justify-center" style="background-color: ${color}; color: ${color}"><div class="emoji-overlay" style="font-size: ${emojiSize}px;">${m.emoji || '⚪'}</div></div></div>`,
+                    iconSize: [size, size], iconAnchor: [size/2, size/2]
+                });
+                L.marker([m.lat, m.lng], { icon: icon }).bindTooltip(currentLang==='en'?(m.nameEn||m.name):m.name).on('click', ()=>showDetail(m)).addTo(markersLayer);
+            });
+        }
+
+        function renderMultiLayerHeatmap() {
+            markersLayer.clearLayers(); heatLayerGroup.clearLayers(); resonanceLayer.clearLayers(); 
+            const filtered = getFilteredMemories();
+            const batches = {};
+            const useCultureColor = activeFilters.cultures.length > 0; 
+
+            filtered.forEach(m => { 
+                const cult = cultures.find(c=>c.id===m.culture);
+                const groupKey = useCultureColor ? m.culture : ((m.categories && m.categories[0])||'Fresh');
+                const color = useCultureColor ? (cult ? cult.color : '#999') : (categories[groupKey]?.color || '#999');
+                const radius = 15 + ((m.intensity||3) * 15); 
+                const batchKey = groupKey + '-' + (m.intensity||3);
+                
+                if(!batches[batchKey]) { batches[batchKey] = { pts: [], color: color, radius: radius }; }
+                batches[batchKey].pts.push([m.lat, m.lng, 1.0]); 
+            });
+
+            Object.values(batches).forEach(batch => {
+                L.heatLayer(batch.pts, { radius: batch.radius, blur: 20, max: 1.0, minOpacity: 0.85, gradient: { 0.0: batch.color, 1.0: batch.color } }).addTo(heatLayerGroup);
+            });
+        }
+
+        function startUploadProcess() {
+            document.getElementById('upload-modal').classList.remove('hidden');
+            currentStep = 1; 
+            editingId = null; // 重置编辑ID，确保是新增
+            // 初始化上传数据，带上身份信息
+            uploadData = { categories: [], authorId: myUserId, authorName: myUserName }; 
+            renderStep(1);
+            showToast(getText('uploadToastTitle'), getText('uploadToastMsg'));
+            document.getElementById('map').classList.add('cursor-pin');
+            // 关键逻辑：允许穿透点击
+            document.getElementById('upload-modal').classList.add('pointer-events-none', 'bg-transparent', 'backdrop-blur-none');
+            document.querySelector('#upload-modal > div').classList.add('hidden'); 
+        }
+        
+        // --- NEW: Start Edit Process ---
+        function startEditProcess(memory) {
+            editingId = memory.id;
+            uploadData = { ...memory }; // 复制当前记忆数据
+            
+            document.getElementById('upload-modal').classList.remove('hidden');
+            document.getElementById('upload-modal').classList.remove('pointer-events-none', 'bg-transparent', 'backdrop-blur-none');
+            document.getElementById('upload-modal').classList.add('bg-slate-900/40', 'backdrop-blur-sm');
+            document.querySelector('#upload-modal > div').classList.remove('hidden');
+            
+            // 直接跳到第2步，跳过地图点选（假设位置不改）
+            // 如果需要修改位置，可以考虑从第1步开始，但需要自动放置 Pin
+            currentStep = 1;
+            renderStep(1); 
+            
+            // 自动放置 Pin
+            if(tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker([memory.lat, memory.lng], { 
+                draggable: true, 
+                icon: L.divIcon({ 
+                    className: 'text-4xl fade-in-marker', 
+                    html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', 
+                    iconSize: [30, 40], iconAnchor: [15, 40] 
+                }) 
+            }).addTo(map);
+            
+            nextStep(); // 自动进入第二步
+        }
+
+        function handleMapClickForUpload(latlng) {
+            const point = map.latLngToContainerPoint(latlng);
+            const ink = document.createElement('div');
+            ink.className = 'ink-ripple';
+            ink.style.left = point.x + 'px';
+            ink.style.top = point.y + 'px';
+            document.getElementById('map-container').appendChild(ink);
+            setTimeout(() => ink.remove(), 1600); 
+
+            setTimeout(() => {
+                uploadData.lat = latlng.lat; 
+                uploadData.lng = latlng.lng;
+                
+                if(tempMarker) map.removeLayer(tempMarker);
+                tempMarker = L.marker(latlng, { 
+                    draggable: true, 
+                    icon: L.divIcon({ 
+                        className: 'text-4xl fade-in-marker', 
+                        html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', 
+                        iconSize: [30, 40], iconAnchor: [15, 40] 
+                    }) 
+                }).addTo(map);
+
+                // 恢复模态框显示，并开启模糊背景
+                document.getElementById('upload-modal').classList.remove('pointer-events-none', 'bg-transparent', 'backdrop-blur-none', 'hidden');
+                document.getElementById('upload-modal').classList.add('bg-slate-900/40', 'backdrop-blur-sm');
+                document.querySelector('#upload-modal > div').classList.remove('hidden');
+                document.getElementById('map').classList.remove('cursor-pin');
+                
+                nextStep(); 
+            }, 800);
+        }
+
+        function handleImageUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadData.imageUrl = e.target.result;
+                    document.getElementById('img-preview-container').classList.remove('hidden');
+                    document.getElementById('img-preview').src = e.target.result;
+                    document.getElementById('upload-placeholder').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 修改：使用 oninput 触发，实时保存
+        function updateUserName(newName) {
+            const val = newName.trim();
+            if(val) {
+                myUserName = val;
+                localStorage.setItem('london_inhale_name', myUserName);
+            }
+        }
+
+        function updateProfileUI() {
+            document.getElementById('profile-name').innerText = myUserName;
+            document.getElementById('user-id-display').innerText = "ID: " + myUserId.substring(0, 8) + "...";
+            if(!document.getElementById('profile-modal').classList.contains('hidden')) {
+                switchProfileTab('uploads');
+            }
+        }
+
+        // 简单的翻译辅助函数 (使用免费API：Google GTX client / MyMemory)
+        async function tryTranslate(text, from, to) {
+            if(!text) return "";
+            
+            // 1. 尝试 Google Translate (GTX - Unofficial but reliable for demos)
+            try {
+                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+                const data = await res.json();
+                if (data && data[0] && data[0][0] && data[0][0][0]) {
+                    // Google returns multiple segments, join them
+                    return data[0].map(segment => segment[0]).join('');
+                }
+            } catch (e) {
+                console.warn("Google GTX translation failed, trying fallback...", e);
+            }
+
+            // 2. Fallback: MyMemory API
+            try {
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
+                const data = await res.json();
+                if(data && data.responseData && data.responseData.translatedText) {
+                    return data.responseData.translatedText;
+                }
+            } catch(e) {
+                console.warn("MyMemory translation failed", e);
+            }
+            
+            return text; // 如果都失败，返回原文
+        }
+
+        function renderStep(step) {
+            const container = document.getElementById('wizard-content');
+            const dots = document.getElementById('step-dots');
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            
+            document.getElementById('progress-bar').style.width = (step / 6 * 100) + '%';
+            dots.innerHTML = '';
+            for(let i=1; i<=6; i++) { dots.innerHTML += `<div class="w-2 h-2 rounded-full ${i <= step ? 'bg-amber-600' : 'bg-amber-200'}"></div>`; }
+            
+            nextBtn.disabled = false; 
+            nextBtn.innerHTML = `${getText('next')} <i class="fa-solid fa-arrow-right ml-2"></i>`; 
+            
+            // 拦截 Next 点击以进行翻译
+            nextBtn.onclick = async () => {
+                // 如果在第3步（名字）或者第6步（故事），尝试自动填充 EN 字段
+                if (step === 3 && uploadData.name && !uploadData.nameEnTranslated) {
+                     nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
+                     const translated = await tryTranslate(uploadData.name, 'zh', 'en');
+                     if(translated && translated !== uploadData.name) {
+                         uploadData.nameEn = translated;
+                         uploadData.nameEnTranslated = true;
+                     } else {
+                         uploadData.nameEn = uploadData.name;
+                     }
+                     renderStep(step); // Reset button text
+                }
+                if (step === 6 && uploadData.story && !uploadData.storyEnTranslated) {
+                     // 提交前翻译
+                     const btnOriginal = nextBtn.innerHTML;
+                     nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
+                     const translated = await tryTranslate(uploadData.story, 'zh', 'en');
+                     if(translated) uploadData.storyEn = translated;
+                     else uploadData.storyEn = uploadData.story;
+                     uploadData.storyEnTranslated = true;
+                     submitUpload();
+                     return;
+                } else if (step === 6) {
+                    submitUpload();
+                    return;
+                }
+                
+                nextStep();
+            };
+
+            prevBtn.innerHTML = `<i class="fa-solid fa-arrow-left mr-2"></i> ${getText('prev')}`;
+            
+            if (step === 1) { prevBtn.disabled = true; prevBtn.style.opacity = '0'; } 
+            else { prevBtn.disabled = false; prevBtn.style.opacity = '1'; prevBtn.onclick = prevStep; }
+
+            let html = '';
+            switch(step) {
+                case 1: 
+                    html = `<div class="text-center"><i class="fa-solid fa-thumbtack text-6xl text-amber-300 mb-4 animate-bounce"></i><h2 class="text-2xl font-bold mb-2">${getText('step1Title')}</h2><p class="text-slate-500">${getText('step1Desc')}</p><p class="text-xs text-amber-600 mt-2 font-bold">${getText('waiting')}</p></div>`; 
+                    nextBtn.disabled = true; 
+                    break;
+                case 2: 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step2Title')}</h2><div class="grid grid-cols-2 gap-3">${cultures.map(c => `<button onclick="selectOption('culture', '${c.id}', this)" class="step-opt px-4 py-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-left transition text-sm font-medium hand-drawn-btn ${uploadData.culture === c.id ? 'active' : ''}">${currentLang==='en'?c.en:c.label}</button>`).join('')}</div></div>`; 
+                    break;
+                case 3: 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step3Title')}</h2><input type="text" id="smell-name" placeholder="${getText('namePlaceholder')}" class="w-full p-4 rounded-lg border border-amber-200 mb-4 focus:ring-2 focus:ring-amber-500 outline-none hand-drawn-container bg-white" oninput="uploadData.name = this.value;" value="${uploadData.name||''}"><p class="text-xs font-bold text-slate-400 uppercase mb-2">${getText('selectCat')}</p><div class="flex flex-wrap gap-2">${Object.entries(categories).map(([key, val]) => `<button onclick="toggleCategory('${key}', this)" class="step-opt-multi px-3 py-2 rounded-full border border-amber-200 text-xs flex items-center gap-2 hover:bg-amber-50 transition hand-drawn-btn ${uploadData.categories.includes(key)?'active':''}" data-val="${key}"><span class="w-3 h-3 rounded-full" style="background:${val.color}"></span>${currentLang==='en'?val.en:val.label}</button>`).join('')}</div></div>`; 
+                    break;
+                case 4: 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step4Title')}</h2><div class="grid grid-cols-3 gap-3">${emotions.map(e => `<button onclick="selectOption('emotion', '${e.label}', this, '${e.emoji}', '${e.en}')" class="step-opt p-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 flex flex-col items-center justify-center gap-1 transition hand-drawn-btn ${uploadData.emotion === e.label ? 'active' : ''}"><span class="text-2xl">${e.emoji}</span><span class="text-xs">${currentLang==='en'?e.en:e.label}</span></button>`).join('')}</div></div>`; 
+                    break;
+                case 5: 
+                    html = `<div><h2 class="text-2xl font-bold mb-6">${getText('step5Title')}</h2><div class="mb-8"><label class="block text-sm font-bold text-slate-600 mb-2">${getText('intensity')}</label><input type="range" min="1" max="5" value="${uploadData.intensity||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.intensity = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('weak')}</span><span>3</span><span>5<br>${getText('strong')}</span></div></div><div><label class="block text-sm font-bold text-slate-600 mb-2">${getText('memory')}</label><input type="range" min="1" max="5" value="${uploadData.memoryLevel||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.memoryLevel = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('vague')}</span><span>3</span><span>5<br>${getText('deep')}</span></div></div></div>`; 
+                    if(!uploadData.intensity) uploadData.intensity = 3; 
+                    if(!uploadData.memoryLevel) uploadData.memoryLevel = 3; 
+                    break;
+                case 6: 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step6Title')}</h2><div class="mb-4"><label class="block w-full border-2 border-dashed border-amber-300 rounded-xl p-4 flex flex-col items-center justify-center bg-amber-50/50 hover:bg-amber-100/50 cursor-pointer transition text-amber-700 h-32 relative"><input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(this)"><div id="upload-placeholder" class="text-center ${uploadData.imageUrl?'hidden':''}"><i class="fa-regular fa-image text-2xl mb-1"></i><span class="text-xs font-medium block">${getText('addPhoto')}</span></div><div id="img-preview-container" class="${uploadData.imageUrl?'':'hidden'} absolute inset-0 p-2"><img id="img-preview" src="${uploadData.imageUrl||''}" class="w-full h-full object-contain rounded-lg"></div></label></div><textarea class="w-full h-24 p-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none font-serif resize-none hand-drawn-container bg-white" placeholder="${getText('storyHolder')}" oninput="uploadData.story = this.value;">${uploadData.story||''}</textarea></div>`; 
+                    nextBtn.innerHTML = `${editingId ? getText('update') : getText('complete')} <i class="fa-solid fa-check ml-2"></i>`; 
+                    // onclick event is handled above
+                    break;
+            }
+            container.innerHTML = `<div class="fade-in w-full">${html}</div>`;
+        }
+
+        function selectOption(key, value, el, emoji=null, enValue=null) {
+            uploadData[key] = value; 
+            if(emoji) uploadData.emoji = emoji;
+            if(key === 'emotion' && enValue) uploadData.emotionEn = enValue;
+            
+            el.parentElement.querySelectorAll('.step-opt').forEach(b => b.classList.remove('active')); 
+            el.classList.add('active');
+        }
+
+        function toggleCategory(value, el) {
+            if (!uploadData.categories) uploadData.categories = [];
+            const idx = uploadData.categories.indexOf(value);
+            if(idx > -1) { uploadData.categories.splice(idx, 1); el.classList.remove('active'); } 
+            else { uploadData.categories.push(value); el.classList.add('active'); }
+        }
+
+        function nextStep() { if(currentStep < 6) { currentStep++; renderStep(currentStep); } }
+        function prevStep() { if(currentStep > 1) { currentStep--; renderStep(currentStep); } }
+        
+        function closeUploadModal() { 
+            document.getElementById('upload-modal').classList.add('hidden'); 
+            if(tempMarker) map.removeLayer(tempMarker); 
+            tempMarker = null; 
+            editingId = null; // 清除编辑状态
+            document.getElementById('map').classList.remove('cursor-pin'); 
+        }
+
+        function submitUpload() {
+            if(!uploadData.story) { uploadData.story = "（用户未填写故事）"; }
+            if(!uploadData.name) { uploadData.name = "未命名气味"; }
+            if(!uploadData.nameEn) { uploadData.nameEn = uploadData.name; } // Fallback
+            if(!uploadData.storyEn) { uploadData.storyEn = uploadData.story; } // Fallback
+
+            if(!uploadData.categories || uploadData.categories.length === 0) uploadData.categories = ['Fresh'];
+            
+            const btn = document.getElementById('next-btn'); 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${getText('processing')}`;
+            
+            if (editingId) {
+                // 更新模式
+                const updatePayload = {
+                    ...uploadData,
+                    // 不更新 timestamp，保持原有创建时间
+                };
+                delete updatePayload.id; // 防止 ID 冲突
+
+                db.collection("memories").doc(editingId).update(updatePayload).then(() => {
+                    showToast("Success", "Memory updated.");
+                    closeUploadModal();
+                }).catch(err => {
+                    console.error(err);
+                    showToast("Error", "Update failed.");
+                    btn.innerHTML = getText('update');
+                });
+            } else {
+                // 新增模式
+                const payload = {
+                    ...uploadData,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    date: new Date().toLocaleDateString(),
+                    comments: [] // 初始化空评论
+                };
+
+                db.collection("memories").add(payload).then(() => {
+                    showToast(getText('successToast'), getText('successMsg')); 
+                    closeUploadModal();
+                }).catch(err => {
+                    console.error(err);
+                    showToast("Error", "Upload failed. Please try again.");
+                    btn.innerHTML = getText('complete');
+                });
+            }
+        }
+
+        function showDetail(memory) {
+            const panel = document.getElementById('detail-panel');
+            const content = document.getElementById('detail-content');
+            if (content) {
+                content.setAttribute('data-memory-id', memory.id);
+                renderDetailContent(memory);
+            }
+            if (panel) panel.classList.remove('translate-x-full');
+        }
+
+        // --- NEW: Comments Logic ---
+        function renderDetailContent(memory) {
+            const content = document.getElementById('detail-content');
+            if (!content) return;
+            const cultureLabel = cultures.find(c => c.id === memory.culture)?.[currentLang === 'en' ? 'en' : 'label'] || memory.culture;
+            
+            // 翻译逻辑体现
+            const name = currentLang === 'en' ? (memory.nameEn || memory.name) : memory.name;
+            const story = currentLang === 'en' ? (memory.storyEn || memory.story) : memory.story;
+            const emotion = currentLang === 'en' ? (memory.emotionEn || memory.emotion) : memory.emotion;
+            
+            const catsHtml = (memory.categories || []).map(c => `<span class="px-2 py-1 rounded text-xs font-bold text-white mr-1" style="background-color: ${categories[c]?.color || '#999'}">${currentLang==='en' ? (categories[c]?.en || c) : (categories[c]?.label || c)}</span>`).join('');
+            
+            // 显示图片
+            const imgHtml = memory.imageUrl ? `<div class="w-full h-48 bg-slate-100 rounded-xl mb-4 overflow-hidden"><img src="${memory.imageUrl}" class="w-full h-full object-cover"></div>` : '';
+
+            // 评论渲染 (Updated for Bilingual Support)
+            const commentsHtml = (memory.comments || []).map(c => {
+                let displayTxt = c.text;
+                let isTranslated = false;
+                
+                // 如果有翻译版本且当前语言与评论源语言不同，则显示翻译
+                if (c.sourceLang && c.translatedText) {
+                    if (currentLang !== c.sourceLang) {
+                        displayTxt = c.translatedText;
+                        isTranslated = true;
+                    }
+                }
+                
+                return `
+                <div class="comment-bubble">
+                    <div class="comment-meta">
+                        <span>${c.author || 'Anonymous'}</span>
+                        <span>${c.date || ''}</span>
+                    </div>
+                    <p>${displayTxt} ${isTranslated ? '<i class="fa-solid fa-language text-amber-400 ml-1 text-xs" title="Translated"></i>' : ''}</p>
+                </div>
+            `}).join('');
+
+            const commentsSection = (memory.comments && memory.comments.length > 0) 
+                ? `<div class="mt-6 border-t border-amber-100/50 pt-4"><h3 class="text-xs font-bold text-amber-900 mb-3 uppercase">${getText('comments')} (${memory.comments.length})</h3>${commentsHtml}</div>` 
+                : `<div class="mt-6 border-t border-amber-100/50 pt-4 text-center text-xs text-slate-300 italic">No comments yet.</div>`;
+
+            content.innerHTML = `<div class="fade-in">
+                ${imgHtml}
+                <div class="flex justify-between items-start mb-2"><div class="flex flex-wrap items-center gap-2"><span class="px-2 py-1 bg-amber-100 rounded text-xs font-bold text-amber-800 uppercase">${cultureLabel}</span>${catsHtml}</div></div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-1 font-serif mt-2">${name}</h2>
+                <p class="text-sm text-slate-400 italic">Shared by ${memory.authorName || 'Explorer'}</p>
+                <div class="text-6xl mb-6 mt-4 text-center transform scale-125">${memory.emoji || '✨'}</div>
+                <div class="flex gap-4 mb-6 border-b border-amber-100/50 pb-4">
+                    <div><p class="text-xs text-slate-400 uppercase">${getText('emotion')}</p><p class="font-medium">${emotion}</p></div>
+                    <div><p class="text-xs text-slate-400 uppercase">${getText('intensity')}</p><div class="flex text-amber-500 text-xs mt-1">${'<i class="fa-solid fa-circle mr-1"></i>'.repeat(memory.intensity || 3)}${'<i class="fa-regular fa-circle mr-1"></i>'.repeat(5-(memory.intensity||3))}</div></div>
+                </div>
+                <div class="mb-6"><p class="text-xs text-slate-400 uppercase mb-2">Story</p><p class="text-slate-600 leading-relaxed italic font-serif text-lg">"${story}"</p></div>
+                <div class="text-xs text-right text-slate-300">${memory.date || ''}</div>
+                ${commentsSection}
+                <div style="height: 60px;"></div> <!-- Space for input -->
+            </div>`;
+            
+            // 更新按钮文本
+            document.getElementById('send-comment-btn').innerText = getText('send');
+        }
+
+        async function sendComment() {
+            const input = document.getElementById('comment-input');
+            const text = input.value.trim();
+            const content = document.getElementById('detail-content');
+            const memId = content ? content.getAttribute('data-memory-id') : null;
+
+            if (!text || !memId) return;
+
+            const btn = document.getElementById('send-comment-btn');
+            const originalText = btn.innerText;
+            
+            // 状态：翻译中...
+            btn.innerHTML = `<i class="fa-solid fa-language fa-spin"></i>`;
+            btn.disabled = true;
+
+            // 1. 确定源语言和目标语言
+            const sourceLang = currentLang; // 假设用户输入的语言是当前界面语言
+            const targetLang = currentLang === 'zh' ? 'en' : 'zh';
+
+            // 2. 尝试翻译
+            let translated = "";
+            try {
+                translated = await tryTranslate(text, sourceLang, targetLang);
+            } catch (e) {
+                console.warn("Comment translation failed", e);
+            }
+
+            const newComment = {
+                text: text, // 原文
+                translatedText: translated || text, // 译文（如果失败则存原文）
+                sourceLang: sourceLang, // 标记源语言
+                author: myUserName || 'Anonymous',
+                date: new Date().toLocaleDateString(),
+                timestamp: Date.now()
+            };
+
+            db.collection('memories').doc(memId).update({
+                comments: firebase.firestore.FieldValue.arrayUnion(newComment)
+            }).then(() => {
+                input.value = '';
+                // 实时监听会自动刷新UI
+            }).catch(err => {
+                console.error(err);
+                showToast("Error", "Failed to send comment.");
+            }).finally(() => {
+                btn.innerText = originalText; // 恢复按钮文本
+                btn.disabled = false;
+            });
+        }
+
+        function closeDetailPanel() { 
+            const panel = document.getElementById('detail-panel');
+            if(panel) panel.classList.add('translate-x-full');
+            document.querySelectorAll('.smell-marker').forEach(el => el.classList.remove('active'));
+        }
+
+        function showToast(title, msg) { const t = document.getElementById('toast'); document.getElementById('toast-title').textContent = title; document.getElementById('toast-msg').textContent = msg; t.classList.remove('translate-x-full'); setTimeout(() => t.classList.add('translate-x-full'), 5000); }
+        
+        // --- 核心修改：每日气味逻辑 ---
+        // 使用日期的哈希值来决定显示哪条记忆，确保同一天显示同一条
+        function renderDailyScent() { 
+            if(memories.length === 0) {
+                document.getElementById('daily-scent-text').innerHTML = "Waiting for data...";
+                return;
+            }
+            
+            // 1. 获取今日日期字符串
+            const today = new Date().toDateString(); 
+            // 2. 将字符串转为数字哈希
+            let hash = 0;
+            for (let i = 0; i < today.length; i++) {
+                hash = today.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // 3. 取模得到索引
+            const index = Math.abs(hash) % memories.length;
+            const m = memories[index]; 
+            
+            const name = currentLang === 'en' ? (m.nameEn || m.name) : m.name;
+            const emo = currentLang === 'en' ? (m.emotionEn || m.emotion) : m.emotion;
+            document.getElementById('daily-scent-text').innerHTML = `<span class="font-bold">"${name}"</span> <br> <span class="text-xs text-slate-500">${emo}</span>`; 
+            document.getElementById('daily-scent').onclick = () => { map.flyTo([m.lat, m.lng], 16); setTimeout(() => showDetail(m), 1500); }; 
+        }
+        
+        function toggleHeatmap() { isHeatmapMode = !isHeatmapMode; renderMarkers(); }
+        
+        function generateCustomRoute() { 
+            pathLayer.clearLayers();
+            const menu = document.getElementById('route-menu');
+            let points = memories; 
+            // 简单筛选逻辑
+            if(routeCriteria.emotions.length > 0 || routeCriteria.cultures.length > 0 || routeCriteria.categories.length > 0) {
+                 const subset = memories.filter(m => {
+                     const e = routeCriteria.emotions.includes(m.emotion) || routeCriteria.emotions.includes(m.emotionEn);
+                     const cObj = cultures.find(cult => cult.id === m.culture);
+                     const c = routeCriteria.cultures.includes(cObj?.label) || routeCriteria.cultures.includes(cObj?.en);
+                     const cat = m.categories && m.categories.some(catKey => {
+                         const catConfig = categories[catKey];
+                         return routeCriteria.categories.includes(catConfig?.label) || routeCriteria.categories.includes(catConfig?.en);
+                     });
+                     return (routeCriteria.emotions.length === 0 || e) && (routeCriteria.cultures.length === 0 || c) && (routeCriteria.categories.length === 0 || cat);
+                 });
+                 if(subset.length > 0) points = subset;
+            }
+
+            if(points.length < 2) { 
+                showToast(getText('routeTitle'), getText('noRoute')); 
+            } else {
+                 showToast(getText('routeTitle'), getText('routeFound'));
+            }
+
+            const routePoints = [];
+            if (points.length > 0) {
+                const maxPoints = Math.min(6, points.length);
+                let current = points[Math.floor(Math.random()*points.length)]; 
+                const visited = new Set([current.id]);
+                routePoints.push(current);
+
+                for(let i=0; i<maxPoints-1; i++) {
+                    let nearest = null;
+                    let minDst = Infinity;
+                    points.forEach(p => {
+                        if(!visited.has(p.id)) {
+                            const dst = Math.sqrt(Math.pow(current.lat - p.lat, 2) + Math.pow(current.lng - p.lng, 2));
+                            if(dst < minDst) { minDst = dst; nearest = p; }
+                        }
+                    });
+                    if(nearest) { visited.add(nearest.id); routePoints.push(nearest); current = nearest; }
+                }
+            }
+            
+            if(routePoints.length > 1) {
+                const latlngs = routePoints.map(m => [m.lat, m.lng]);
+                L.polyline(latlngs, { color: '#D4B996', weight: 5, opacity: 0.9, dashArray: '1, 10', lineCap: 'round', className: 'fade-in' }).addTo(pathLayer);
+                map.fitBounds(L.latLngBounds(latlngs), {padding: [50, 50]});
+                menu.style.display = 'none';
+            }
+        } 
+        
+        function toggleRouteMenu() {
+            const menu = document.getElementById('route-menu');
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+        
+        function toggleProfile() { document.getElementById('profile-modal').classList.remove('hidden'); switchProfileTab('uploads'); }
+        function toggleHeader() {
+            const hb = document.getElementById('header-box');
+            hb.classList.toggle('header-collapsed');
+            document.getElementById('header-content').classList.toggle('collapsed');
+        }
+        function initUI() { document.body.classList.add('fade-in'); }
+
+        // --- NEW: Delete Logic ---
+        let memoryToDeleteId = null;
+
+        function confirmDelete(id) {
+            memoryToDeleteId = id;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            document.getElementById('confirm-delete-btn').onclick = () => performDelete();
+        }
+
+        function performDelete() {
+            if (!memoryToDeleteId) return;
+            const btn = document.getElementById('confirm-delete-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "...";
+            
+            // 使用 helper 获取集合
+            // 核心修改：直接 collection("memories")
+            db.collection("memories").doc(memoryToDeleteId).delete().then(() => {
+                showToast("Success", "Memory deleted.");
+                document.getElementById('confirm-modal').classList.add('hidden');
+            }).catch(err => {
+                console.error("Error removing document: ", err);
+                showToast("Error", "Could not delete.");
+            }).finally(() => {
+                btn.innerText = originalText;
+                memoryToDeleteId = null;
+            });
+        }
+
+        function switchProfileTab(tab) {
+            const content = document.getElementById('profile-content');
+            if (!content) return;
+            // 简化版只做 Uploads 显示
+            content.innerHTML = '';
+            const myMems = memories.filter(m => m.authorId === myUserId);
+            if(myMems.length === 0) {
+                content.innerHTML = '<p class="text-center text-slate-400 mt-10">No uploads yet.</p>';
+            } else {
+                myMems.forEach(m => {
+                    const div = document.createElement('div'); div.className = 'bg-white p-3 rounded-lg border border-amber-100 mb-3 cursor-pointer flex justify-between items-center group relative';
+                    
+                    const textDiv = document.createElement('div');
+                    const n = currentLang==='en'?(m.nameEn||m.name):m.name;
+                    textDiv.innerHTML = `<h3 class="font-bold text-slate-700 text-sm">${n}</h3><p class="text-xs text-slate-400">${m.date}</p>`;
+                    
+                    // 按钮容器
+                    const btnGroup = document.createElement('div');
+                    btnGroup.className = 'flex gap-1 opacity-0 group-hover:opacity-100 transition';
+
+                    // 编辑按钮
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'text-slate-300 hover:text-blue-500 p-2';
+                    editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+                    editBtn.onclick = (e) => {
+                        e.stopPropagation(); 
+                        document.getElementById('profile-modal').classList.add('hidden');
+                        startEditProcess(m);
+                    };
+
+                    // 删除按钮 (Updated)
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'text-slate-300 hover:text-red-500 p-2';
+                    delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation(); // 防止触发div点击查看详情
+                        confirmDelete(m.id);
+                    };
+
+                    btnGroup.appendChild(editBtn);
+                    btnGroup.appendChild(delBtn);
+
+                    div.appendChild(textDiv);
+                    div.appendChild(btnGroup);
+
+                    div.onclick = () => { document.getElementById('profile-modal').classList.add('hidden'); map.setView([m.lat, m.lng], 16); showDetail(m); };
+                    content.appendChild(div);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
