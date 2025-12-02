@@ -1109,8 +1109,8 @@
             const query = document.getElementById('location-search-input').value;
             if (!query) return;
 
-            // Simple nominatim search limited to UK preference
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=gb&limit=1`)
+            // Simple nominatim search - removed country limitation for worldwide search
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
                 .then(res => {
                     if (!res.ok) throw new Error('Network response was not ok');
                     return res.json();
