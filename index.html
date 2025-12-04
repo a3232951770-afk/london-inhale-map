@@ -248,6 +248,12 @@
             display: block; /* keep layout for transform */
             visibility: hidden;
         }
+        #filter-popup.not-hidden {
+            transform: scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+        /* 之前CSS写法的优化，确保正确 */
         #filter-popup:not(.hidden) {
             transform: scale(1);
             opacity: 1;
@@ -340,7 +346,7 @@
         // 移除 Auth，直接连接数据库
     </script>
 
-    <!-- Intro -->
+    <!-- Intro (优化后：只保留静态介绍词，去掉了“已收集...”) -->
     <div id="intro-screen">
         <div class="hand-drawn-container p-10 max-w-2xl text-center shadow-2xl relative bg-white/90 border border-amber-100 mx-4">
             <div class="absolute -top-6 -left-6 text-6xl text-amber-300 opacity-80 transform -rotate-12"><i class="fa-solid fa-cloud"></i></div>
@@ -352,10 +358,15 @@
             <h1 class="text-5xl font-bold text-slate-800 italic mb-4 font-serif text-amber-900" id="intro-title">London, Inhale</h1>
             <div class="w-24 h-1 bg-amber-400 mx-auto mb-6 rounded-full"></div>
             
-            <!-- Loading Status -->
+            <!-- Intro Text Only -->
             <div id="loading-container">
-                <p class="text-xl text-slate-600 mb-4 font-serif leading-relaxed" id="intro-desc">Loading memories...</p>
-                <div class="text-amber-600 mb-8"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
+                <p class="text-xl text-slate-600 mb-6 font-serif leading-relaxed" id="intro-desc">
+                    欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。
+                </p>
+                
+                <!-- 已移除丑陋的统计文字 -->
+
+                <div class="text-amber-600 mb-8" id="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
             </div>
 
             <button id="start-btn" onclick="startExperience()" class="hidden bg-amber-700 text-white px-10 py-4 rounded-full text-lg shadow-lg hover:bg-amber-800 transition transform hover:scale-105 hand-drawn-btn border-amber-900">
@@ -593,7 +604,9 @@
         // 配置数据
         const translations = {
             zh: {
-                introTitle: "London, Inhale", introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。<br>数据加载中...", startBtn: "开启探索", langBtn: "Switch to English",
+                introTitle: "London, Inhale", 
+                introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。", 
+                startBtn: "开启探索", langBtn: "Switch to English",
                 title: "London, Inhale", subtitle: "气味 · 记忆 · 归属感", dailyScent: "今日气味",
                 routeTitle: "定制气味漫步路线", routeDesc: "多选标签，生成步行路线", emotion: "情绪", culture: "文化背景", scent: "气味类别", selectAll: "全选", generate: "生成路线 ✨",
                 filterTitle: "气味记忆分类", reset: "重置条件", upload: "上传记忆",
@@ -610,7 +623,9 @@
                 searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中..."
             },
             en: {
-                introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.<br>Loading data...", startBtn: "Start Exploring", langBtn: "切换到中文",
+                introTitle: "London, Inhale", 
+                introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", 
+                startBtn: "Start Exploring", langBtn: "切换到中文",
                 title: "London, Inhale", subtitle: "Scent · Memory · Belonging", dailyScent: "Daily Scent",
                 routeTitle: "Custom Route", routeDesc: "Select tags for walking route", emotion: "Emotion", culture: "Culture", scent: "Scent", selectAll: "Select All", generate: "Generate ✨",
                 filterTitle: "Filters", reset: "Reset", upload: "Memory",
@@ -685,13 +700,8 @@
                 isDataLoaded = true;
                 
                 // 更新 UI 状态
-                const introDesc = document.getElementById('intro-desc');
-                const loadingContainer = document.getElementById('loading-container');
+                const loadingContainer = document.getElementById('loading-spinner');
                 const startBtn = document.getElementById('start-btn');
-                
-                if(introDesc) introDesc.innerHTML = currentLang === 'zh' ? 
-                    `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
-                    `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
                 
                 if(loadingContainer) loadingContainer.style.display = 'none';
                 if(startBtn) startBtn.classList.remove('hidden');
@@ -930,14 +940,22 @@
 
         function safeUpdateTexts() {
             safeSetHTML('intro-title', getText('introTitle'));
-            if(isDataLoaded) {
-                 const introDesc = document.getElementById('intro-desc');
-                 if(introDesc) introDesc.innerHTML = currentLang === 'zh' ? 
-                    `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
-                    `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
-            } else {
-                 safeSetHTML('intro-desc', getText('introDesc'));
+            // 静态文本部分 (intro-desc) 已经固定，不再需要在这里更新
+            // 只在切语言时更新
+            safeSetHTML('intro-desc', getText('introDesc'));
+
+            // 动态状态部分
+            const statusEl = document.getElementById('intro-status');
+            if (statusEl) {
+                if(isDataLoaded) {
+                     statusEl.innerHTML = currentLang === 'zh' ? 
+                        `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
+                        `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
+                } else {
+                     statusEl.innerText = currentLang === 'zh' ? "数据加载中..." : "Loading data...";
+                }
             }
+
             safeSetText('intro-btn', getText('startBtn'));
             safeSetText('lang-btn-intro', getText('langBtn'));
             safeSetText('header-title', getText('title'));
@@ -1109,7 +1127,7 @@
             const query = document.getElementById('location-search-input').value;
             if (!query) return;
 
-            // Simple nominatim search - removed country limitation for worldwide search
+            // Simple nominatim search limited to UK preference
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
                 .then(res => {
                     if (!res.ok) throw new Error('Network response was not ok');
