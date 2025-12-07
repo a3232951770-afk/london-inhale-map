@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>London, Inhale | 气味情绪地图</title>
+    <title>London, Inhale | Scent Emotion Map</title>
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -346,13 +346,13 @@
         // 移除 Auth，直接连接数据库
     </script>
 
-    <!-- Intro (优化后：只保留静态介绍词，去掉了“已收集...”) -->
+    <!-- Intro (优化后：只保留静态介绍词，默认为英文) -->
     <div id="intro-screen">
         <div class="hand-drawn-container p-10 max-w-2xl text-center shadow-2xl relative bg-white/90 border border-amber-100 mx-4">
             <div class="absolute -top-6 -left-6 text-6xl text-amber-300 opacity-80 transform -rotate-12"><i class="fa-solid fa-cloud"></i></div>
             
             <button onclick="toggleLanguage()" class="absolute top-4 right-4 text-sm font-bold text-amber-800 hover:text-amber-600 border-b border-amber-200">
-                <i class="fa-solid fa-globe mr-1"></i> <span id="lang-btn-intro">English</span>
+                <i class="fa-solid fa-globe mr-1"></i> <span id="lang-btn-intro">中文</span>
             </button>
 
             <h1 class="text-5xl font-bold text-slate-800 italic mb-4 font-serif text-amber-900" id="intro-title">London, Inhale</h1>
@@ -361,16 +361,17 @@
             <!-- Intro Text Only -->
             <div id="loading-container">
                 <p class="text-xl text-slate-600 mb-6 font-serif leading-relaxed" id="intro-desc">
-                    欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。
+                    Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.
                 </p>
                 
-                <!-- 已移除丑陋的统计文字 -->
+                <!-- 修改后的 Loading 文本 -->
+                <p class="text-sm text-amber-700 font-bold mb-6 italic" id="intro-status">Loading memories...</p>
 
                 <div class="text-amber-600 mb-8" id="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
             </div>
 
             <button id="start-btn" onclick="startExperience()" class="hidden bg-amber-700 text-white px-10 py-4 rounded-full text-lg shadow-lg hover:bg-amber-800 transition transform hover:scale-105 hand-drawn-btn border-amber-900">
-                <span id="intro-btn">Start</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                <span id="intro-btn">Start Exploring</span> <i class="fa-solid fa-arrow-right ml-2"></i>
             </button>
             <p class="text-xs text-slate-400 mt-6 uppercase tracking-widest">A Digital Humanities Project</p>
         </div>
@@ -393,13 +394,13 @@
                 <div class="flex justify-between items-center cursor-pointer" onclick="toggleHeader()">
                     <div>
                         <h1 class="text-xl md:text-2xl font-bold text-slate-800 italic" id="header-title">London, Inhale</h1>
-                        <p class="text-[10px] md:text-xs text-slate-500 mt-0.5 uppercase tracking-widest" id="header-subtitle">气味 · 记忆 · 归属感</p>
+                        <p class="text-[10px] md:text-xs text-slate-500 mt-0.5 uppercase tracking-widest" id="header-subtitle">Scent · Memory · Belonging</p>
                     </div>
                     <button class="text-slate-400 hover:text-amber-600 p-1 ml-2" id="header-toggle-icon"><i class="fa-solid fa-chevron-up"></i></button>
                 </div>
                 <div id="header-content" class="mt-3">
                     <div id="daily-scent" class="p-2 bg-amber-50/50 rounded-lg border border-amber-100 cursor-pointer hover:bg-amber-100/80 transition text-xs md:text-sm">
-                        <div class="flex items-center gap-2 mb-1"><span class="text-[10px] font-bold text-amber-600 uppercase" id="daily-label">今日气味</span><i class="fa-solid fa-wind text-amber-400 text-xs"></i></div>
+                        <div class="flex items-center gap-2 mb-1"><span class="text-[10px] font-bold text-amber-600 uppercase" id="daily-label">Daily Scent</span><i class="fa-solid fa-wind text-amber-400 text-xs"></i></div>
                         <p id="daily-scent-text" class="italic text-slate-700">Collecting scents...</p>
                     </div>
                 </div>
@@ -410,7 +411,7 @@
                 <button class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-amber-600 shrink-0" onclick="toggleSearch()">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
-                <input type="text" id="location-search-input" placeholder="搜索邮编/地名 (Search)..." class="bg-transparent border-none outline-none text-xs w-full px-2 font-serif text-slate-700 block" onfocus="this.parentElement.classList.add('expanded')" onblur="if(!this.value) this.parentElement.classList.remove('expanded')" onkeydown="if(event.key === 'Enter') searchLocation()">
+                <input type="text" id="location-search-input" placeholder="Search postcode/place..." class="bg-transparent border-none outline-none text-xs w-full px-2 font-serif text-slate-700 block" onfocus="this.parentElement.classList.add('expanded')" onblur="if(!this.value) this.parentElement.classList.remove('expanded')" onkeydown="if(event.key === 'Enter') searchLocation()">
             </div>
         </div>
 
@@ -427,14 +428,14 @@
                 <button onclick="toggleRouteMenu()" id="route-btn" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm rounded-full" title="Route"><i class="fa-solid fa-route text-slate-600"></i></button>
                 <div id="route-menu" class="route-menu" style="right: 3.5rem; top: 0;">
                     <div class="p-3 bg-amber-50 border-b border-amber-200 flex justify-between items-center">
-                        <div><h3 class="text-xs font-bold text-amber-900" id="route-title">定制气味漫步路线</h3><p class="text-[9px] text-slate-500" id="route-desc">多选标签...</p></div>
+                        <div><h3 class="text-xs font-bold text-amber-900" id="route-title">Custom Route</h3><p class="text-[9px] text-slate-500" id="route-desc">Select tags...</p></div>
                         <button onclick="toggleRouteMenu()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="p-2 overflow-y-auto flex-grow space-y-2 no-scrollbar">
                         <div id="route-menu-content"></div>
                     </div>
                     <div class="p-2 border-t border-amber-200 bg-amber-50">
-                        <button onclick="generateCustomRoute()" class="w-full bg-amber-700 text-white py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-amber-800 transition" id="route-gen-btn">生成路线 ✨</button>
+                        <button onclick="generateCustomRoute()" class="w-full bg-amber-700 text-white py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-amber-800 transition" id="route-gen-btn">Generate ✨</button>
                     </div>
                 </div>
             </div>
@@ -449,7 +450,7 @@
         <div class="relative pointer-events-auto">
             <div id="filter-popup" class="hidden absolute bottom-14 left-0 w-64 hand-drawn-container p-4 mb-2 origin-bottom-left z-20 bg-white/95">
                  <div class="flex justify-between items-center mb-3">
-                    <h3 class="serif font-bold text-slate-700 text-sm"><i class="fa-solid fa-filter mr-2"></i><span id="filter-title">Filter</span></h3>
+                    <h3 class="serif font-bold text-slate-700 text-sm"><i class="fa-solid fa-filter mr-2"></i><span id="filter-title">Filters</span></h3>
                     <button onclick="toggleFilterPopup()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
@@ -480,9 +481,9 @@
             <div class="h-1 bg-amber-100 w-full"><div id="progress-bar" class="h-full bg-amber-500 w-1/6 transition-all duration-300"></div></div>
             <div class="p-8 flex-grow flex flex-col justify-center relative pointer-events-auto" id="wizard-content"></div>
             <div class="bg-amber-50/50 p-6 flex justify-between items-center border-t border-amber-100 pointer-events-auto">
-                <button id="prev-btn" onclick="prevStep()" class="text-slate-400 hover:text-slate-600 font-medium px-4 py-2 disabled:opacity-0 transition"><i class="fa-solid fa-arrow-left mr-2"></i>上一步</button>
+                <button id="prev-btn" onclick="prevStep()" class="text-slate-400 hover:text-slate-600 font-medium px-4 py-2 disabled:opacity-0 transition"><i class="fa-solid fa-arrow-left mr-2"></i>Back</button>
                 <div class="flex gap-2" id="step-dots"></div>
-                <button id="next-btn" onclick="nextStep()" class="bg-amber-700 text-white px-6 py-2 rounded-full hover:bg-amber-800 transition shadow-lg hand-drawn-btn disabled:opacity-50 disabled:cursor-not-allowed">下一步</button>
+                <button id="next-btn" onclick="nextStep()" class="bg-amber-700 text-white px-6 py-2 rounded-full hover:bg-amber-800 transition shadow-lg hand-drawn-btn disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
             </div>
         </div>
     </div>
@@ -604,9 +605,7 @@
         // 配置数据
         const translations = {
             zh: {
-                introTitle: "London, Inhale", 
-                introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。", 
-                startBtn: "开启探索", langBtn: "Switch to English",
+                introTitle: "London, Inhale", introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。", startBtn: "开启探索", langBtn: "Switch to English",
                 title: "London, Inhale", subtitle: "气味 · 记忆 · 归属感", dailyScent: "今日气味",
                 routeTitle: "定制气味漫步路线", routeDesc: "多选标签，生成步行路线", emotion: "情绪", culture: "文化背景", scent: "气味类别", selectAll: "全选", generate: "生成路线 ✨",
                 filterTitle: "气味记忆分类", reset: "重置条件", upload: "上传记忆",
@@ -620,12 +619,11 @@
                 waiting: "(等待点击...)", namePlaceholder: "例如：雨后的青草", selectCat: "选择气味类别", addPhoto: "点击添加图片",
                 uploadToastTitle: "开始上传", uploadToastMsg: "请在地图上点击你闻到气味的位置",
                 successToast: "上传成功", successMsg: "你的气味记忆已添加到伦敦地图中。", processing: "处理中...",
-                searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中..."
+                searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中...",
+                fillName: "请填写气味名称", selectCategory: "请选择气味类别", selectCulture: "请选择文化背景", selectEmotion: "请选择一种情绪"
             },
             en: {
-                introTitle: "London, Inhale", 
-                introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", 
-                startBtn: "Start Exploring", langBtn: "切换到中文",
+                introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", startBtn: "Start Exploring", langBtn: "切换到中文",
                 title: "London, Inhale", subtitle: "Scent · Memory · Belonging", dailyScent: "Daily Scent",
                 routeTitle: "Custom Route", routeDesc: "Select tags for walking route", emotion: "Emotion", culture: "Culture", scent: "Scent", selectAll: "Select All", generate: "Generate ✨",
                 filterTitle: "Filters", reset: "Reset", upload: "Memory",
@@ -639,11 +637,12 @@
                 waiting: "(Waiting for click...)", namePlaceholder: "E.g., Rain on grass", selectCat: "Select Scent Category", addPhoto: "Add Photo",
                 uploadToastTitle: "Start Upload", uploadToastMsg: "Please click the location on the map.",
                 successToast: "Upload Success", successMsg: "Your scent memory has been added to the London map.", processing: "Processing...",
-                searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating..."
+                searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating...",
+                fillName: "Please enter scent name", selectCategory: "Please select a category", selectCulture: "Please select cultural background", selectEmotion: "Please select an emotion"
             }
         };
 
-        let currentLang = 'zh';
+        let currentLang = 'en';
         const categories = { 'Floral': { color: '#F4A4A4', label: '花香调', en: 'Floral' }, 'Fruity': { color: '#F7C5A0', label: '果香调', en: 'Fruity' }, 'Woody': { color: '#D4B996', label: '木质调', en: 'Woody' }, 'Fresh': { color: '#A0C4FF', label: '清新调', en: 'Fresh' }, 'Sweet': { color: '#FCEEB5', label: '甜食', en: 'Sweet' }, 'Food': { color: '#FF8C8C', label: '食物', en: 'Food' }, 'Burnt': { color: '#B0B7C0', label: '焦味', en: 'Burnt' }, 'Mall': { color: '#DCD0FF', label: '商场', en: 'Mall' }, 'Dusty': { color: '#C7C1BD', label: '尘土', en: 'Dusty' }, 'Animalic': { color: '#A67B5B', label: '动物', en: 'Animalic' }, 'Rotten': { color: '#4A4A4A', label: '腐烂', en: 'Rotten' } };
         // 增加厌恶
         const emotions = [ { label: '温暖', en: 'Warm', emoji: '🥰' }, { label: '怀旧', en: 'Nostalgic', emoji: '🧸' }, { label: '平静', en: 'Calm', emoji: '😌' }, { label: '喜悦', en: 'Joyful', emoji: '🥳' }, { label: '惊讶', en: 'Surprised', emoji: '😲' }, { label: '悲伤', en: 'Sad', emoji: '🥺' }, { label: '不安', en: 'Anxious', emoji: '😰' }, { label: '愤怒', en: 'Angry', emoji: '😡' }, { label: '疲惫', en: 'Tired', emoji: '😫' }, { label: '迷茫', en: 'Lost', emoji: '😵‍💫' }, { label: '害怕', en: 'Scared', emoji: '😖' }, { label: '厌恶', en: 'Disgust', emoji: '🤢' } ];
@@ -702,9 +701,18 @@
                 // 更新 UI 状态
                 const loadingContainer = document.getElementById('loading-spinner');
                 const startBtn = document.getElementById('start-btn');
+                const statusEl = document.getElementById('intro-status');
+                
+                // 显示状态文字
+                if(statusEl) {
+                    statusEl.innerHTML = "Loading memories...";
+                }
                 
                 if(loadingContainer) loadingContainer.style.display = 'none';
                 if(startBtn) startBtn.classList.remove('hidden');
+
+                // 加载完成后移除状态文字，保持干净
+                if(statusEl) statusEl.style.display = 'none';
 
                 renderMarkers();
                 renderDailyScent();
@@ -944,17 +952,7 @@
             // 只在切语言时更新
             safeSetHTML('intro-desc', getText('introDesc'));
 
-            // 动态状态部分
-            const statusEl = document.getElementById('intro-status');
-            if (statusEl) {
-                if(isDataLoaded) {
-                     statusEl.innerHTML = currentLang === 'zh' ? 
-                        `已收集 ${memories.length} 条气味记忆。<br>每一次呼吸都是一个故事。` : 
-                        `Collected ${memories.length} scent memories.<br>Every breath tells a story.`;
-                } else {
-                     statusEl.innerText = currentLang === 'zh' ? "数据加载中..." : "Loading data...";
-                }
-            }
+            // 注意：已经移除了 status 的更新逻辑
 
             safeSetText('intro-btn', getText('startBtn'));
             safeSetText('lang-btn-intro', getText('langBtn'));
@@ -1424,8 +1422,36 @@
             nextBtn.disabled = false; 
             nextBtn.innerHTML = `${getText('next')} <i class="fa-solid fa-arrow-right ml-2"></i>`; 
             
-            // 拦截 Next 点击以进行翻译
+            // 拦截 Next 点击以进行校验
             nextBtn.onclick = async () => {
+                // Validation for Step 2: Culture
+                if (step === 2) {
+                    if (!uploadData.culture) {
+                        showToast("Tip", getText('selectCulture'));
+                        return;
+                    }
+                }
+                
+                // Validation for Step 3: Name & Categories
+                if (step === 3) {
+                    if (!uploadData.name || !uploadData.name.trim()) {
+                        showToast("Tip", getText('fillName'));
+                        return;
+                    }
+                    if (!uploadData.categories || uploadData.categories.length === 0) {
+                        showToast("Tip", getText('selectCategory'));
+                        return;
+                    }
+                }
+
+                // Validation for Step 4: Emotion
+                if (step === 4) {
+                    if (!uploadData.emotion) {
+                        showToast("Tip", getText('selectEmotion'));
+                        return;
+                    }
+                }
+
                 // 如果在第3步（名字）或者第6步（故事），尝试自动填充 EN 字段
                 if (step === 3 && uploadData.name && !uploadData.nameEnTranslated) {
                      nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
