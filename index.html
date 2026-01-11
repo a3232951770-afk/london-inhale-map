@@ -15,8 +15,8 @@
     <!-- 引入 Leaflet Heatmap 插件 -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-    <!-- 引入 Chart.js 用于数据可视化 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 Chart.js (修复: 使用 UMD 版本以确保全局变量 Chart 被正确定义) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <!-- 引入 Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -101,7 +101,7 @@
         /* 气味标记动画 */
         .smell-marker { transition: all 0.3s ease; }
         
-        /* NEW: 已读状态样式 (变淡+去饱和) */
+        /* 已读状态样式 (变淡+去饱和) */
         .smell-marker.visited {
             opacity: 0.65;
             filter: grayscale(0.4);
@@ -255,7 +255,7 @@
         .comment-meta { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; display: flex; justify-content: space-between; }
         .no-pointer-events { pointer-events: none !important; }
 
-        /* NEW: Notification Dot */
+        /* Notification Dot */
         .notification-dot {
             position: absolute; top: -2px; right: -2px;
             width: 12px; height: 12px;
@@ -349,7 +349,6 @@
 
         <!-- Top Right -->
         <div class="flex flex-col gap-3 pointer-events-auto items-end relative">
-            <!-- NEW: Added notification dot here -->
             <button onclick="toggleProfile()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative z-50 rounded-full" title="Profile">
                 <i class="fa-regular fa-user text-slate-600"></i>
                 <div id="profile-notify-dot" class="notification-dot"></div>
@@ -423,7 +422,7 @@
 
     <!-- Detail Panel -->
     <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col">
-        <!-- NEW: Bookmark Button in header -->
+        <!-- Bookmark Button -->
         <div class="absolute top-4 left-4 z-10">
             <button id="bookmark-btn" onclick="toggleCurrentBookmark()" class="text-slate-400 hover:text-amber-500 text-xl transition transform hover:scale-110">
                 <i class="fa-regular fa-bookmark"></i>
@@ -439,7 +438,7 @@
         </div>
     </div>
 
-    <!-- Profile Modal (Updated Tabs) -->
+    <!-- Profile Modal (With Messages Tab) -->
     <div id="profile-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="hand-drawn-container w-[95%] md:w-full md:max-w-lg min-h-[500px] max-h-[80vh] flex flex-col bg-amber-50/95 relative">
             <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -455,10 +454,12 @@
                 </div>
                 <p class="text-xs text-slate-500 mt-1" id="user-id-display">ID: ...</p>
             </div>
-            <!-- NEW: Added Bookmarks Tab -->
+            
+            <!-- Three Tabs: Uploads, Bookmarks, Messages -->
             <div class="flex border-b border-amber-200">
                 <button onclick="switchProfileTab('uploads')" id="tab-uploads" class="flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50">My Uploads</button>
                 <button onclick="switchProfileTab('bookmarks')" id="tab-bookmarks" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent">Bookmarks</button>
+                <button onclick="switchProfileTab('messages')" id="tab-messages" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent">Messages</button>
             </div>
             <div class="flex-grow overflow-y-auto p-4" id="profile-content"></div>
         </div>
@@ -538,7 +539,7 @@
                 title: "London, Inhale", subtitle: "气味 · 记忆 · 归属感", dailyScent: "今日气味",
                 routeTitle: "定制气味漫步路线", routeDesc: "多选标签，生成步行路线", emotion: "情绪", culture: "文化背景", scent: "气味类别", selectAll: "全选", generate: "生成路线 ✨",
                 filterTitle: "气味记忆分类", reset: "重置条件", upload: "上传记忆",
-                myProfile: "我的档案", myUploads: "我的发布", myBookmarks: "我的收藏", messages: "消息",
+                myProfile: "我的档案", myUploads: "我的发布", myBookmarks: "我的收藏", myMessages: "消息", messages: "消息",
                 step1Title: "选择地点", step1Desc: "鼠标已变为图钉模式，请点击地图。", step2Title: "你的文化背景", step3Title: "气味详情 (可多选)", step4Title: "那一刻的情绪", step5Title: "强度与记忆", step6Title: "故事与图片",
                 prev: "上一步", next: "下一步", complete: "完成上传", update: "更新记忆", intensity: "气味强度", memory: "记忆深刻程度",
                 weak: "弱", strong: "强", vague: "模糊", deep: "刻骨", comments: "评论", send: "发送",
@@ -550,14 +551,15 @@
                 successToast: "上传成功", successMsg: "你的气味记忆已添加到伦敦地图中。", processing: "处理中...",
                 searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中...",
                 fillName: "请填写气味名称", selectCategory: "请选择气味类别", selectCulture: "请选择文化背景", selectEmotion: "请选择一种情绪",
-                bookmarkAdded: "已收藏", bookmarkRemoved: "已取消收藏"
+                bookmarkAdded: "已收藏", bookmarkRemoved: "已取消收藏",
+                commentedOn: "评论了你的:", reply: "点击回复"
             },
             en: {
                 introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", startBtn: "Start Exploring", langBtn: "切换到中文",
                 title: "London, Inhale", subtitle: "Scent · Memory · Belonging", dailyScent: "Daily Scent",
                 routeTitle: "Custom Route", routeDesc: "Select tags for walking route", emotion: "Emotion", culture: "Culture", scent: "Scent", selectAll: "Select All", generate: "Generate ✨",
                 filterTitle: "Filters", reset: "Reset", upload: "Memory",
-                myProfile: "Profile", myUploads: "Uploads", myBookmarks: "Bookmarks", messages: "Messages",
+                myProfile: "Profile", myUploads: "Uploads", myBookmarks: "Bookmarks", myMessages: "Messages", messages: "Messages",
                 step1Title: "Select Location", step1Desc: "Map is in pin mode. Please click on the map.", step2Title: "Your Cultural Background", step3Title: "Scent Details (Multi-select)", step4Title: "Emotion at that Moment", step5Title: "Intensity & Memory", step6Title: "Story & Image",
                 prev: "Back", next: "Next", complete: "Submit", update: "Update Memory", intensity: "Scent Intensity", memory: "Memory Depth",
                 weak: "Weak", strong: "Strong", vague: "Vague", deep: "Deep", comments: "Comments", send: "Send",
@@ -569,7 +571,8 @@
                 successToast: "Upload Success", successMsg: "Your scent memory has been added to the London map.", processing: "Processing...",
                 searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating...",
                 fillName: "Please enter scent name", selectCategory: "Please select a category", selectCulture: "Please select cultural background", selectEmotion: "Please select an emotion",
-                bookmarkAdded: "Saved to Bookmarks", bookmarkRemoved: "Removed from Bookmarks"
+                bookmarkAdded: "Saved to Bookmarks", bookmarkRemoved: "Removed from Bookmarks",
+                commentedOn: "Commented on:", reply: "Click to reply"
             }
         };
 
@@ -646,7 +649,15 @@
 
                 // Refresh Profile if open
                 if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                    const activeTab = document.getElementById('tab-bookmarks').classList.contains('border-amber-600') ? 'bookmarks' : 'uploads';
+                    // Check active tab
+                    const t1 = document.getElementById('tab-uploads');
+                    const t2 = document.getElementById('tab-bookmarks');
+                    const t3 = document.getElementById('tab-messages');
+                    
+                    let activeTab = 'uploads';
+                    if(t2.classList.contains('border-amber-600')) activeTab = 'bookmarks';
+                    if(t3.classList.contains('border-amber-600')) activeTab = 'messages';
+                    
                     switchProfileTab(activeTab);
                 }
                 
@@ -826,6 +837,7 @@
             
             safeSetText('tab-uploads', getText('myUploads'));
             safeSetText('tab-bookmarks', getText('myBookmarks'));
+            safeSetText('tab-messages', getText('myMessages'));
 
             document.getElementById('location-search-input').placeholder = getText('searchPlaceholder');
             renderFilters();
@@ -1100,8 +1112,15 @@
             document.getElementById('profile-name').innerText = myUserName;
             document.getElementById('user-id-display').innerText = "ID: " + myUserId.substring(0, 8) + "...";
             if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                // If modal is open, verify tab logic
-                const activeTab = document.getElementById('tab-bookmarks').classList.contains('border-amber-600') ? 'bookmarks' : 'uploads';
+                // Check active tab
+                const t1 = document.getElementById('tab-uploads');
+                const t2 = document.getElementById('tab-bookmarks');
+                const t3 = document.getElementById('tab-messages');
+                
+                let activeTab = 'uploads';
+                if(t2 && t2.classList.contains('border-amber-600')) activeTab = 'bookmarks';
+                if(t3 && t3.classList.contains('border-amber-600')) activeTab = 'messages';
+                
                 switchProfileTab(activeTab);
             }
         }
@@ -1448,24 +1467,91 @@
               .finally(() => { btn.innerText = originalText; memoryToDeleteId = null; });
         }
 
-        // --- NEW: Switch Profile Tab (Uploads vs Bookmarks) ---
+        // --- NEW: Switch Profile Tab (Uploads vs Bookmarks vs Messages) ---
         function switchProfileTab(tab) {
             const content = document.getElementById('profile-content');
             if (!content) return;
             
             // Tab styling
-            const t1 = document.getElementById('tab-uploads');
-            const t2 = document.getElementById('tab-bookmarks');
-            if (tab === 'uploads') {
-                t1.className = 'flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50';
-                t2.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent';
-            } else {
-                t2.className = 'flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50';
-                t1.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent';
+            const tabs = ['uploads', 'bookmarks', 'messages'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tab-' + t);
+                if(t === tab) {
+                    btn.className = 'flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50';
+                } else {
+                    btn.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent';
+                }
+            });
+
+            // Logic for 'messages' tab: Clear notification dot when viewed
+            if(tab === 'messages') {
+                 let currentTotalComments = 0;
+                 memories.filter(m => m.authorId === myUserId).forEach(m => {
+                    if(m.comments) currentTotalComments += m.comments.length;
+                 });
+                 if(lastKnownCommentCount < currentTotalComments) {
+                     localStorage.setItem('li_last_comment_count', currentTotalComments);
+                     lastKnownCommentCount = currentTotalComments;
+                 }
+                 document.getElementById('profile-notify-dot').classList.remove('active');
             }
 
             content.innerHTML = '';
             
+            if(tab === 'messages') {
+                // Aggregate comments for current user
+                let allMessages = [];
+                memories.filter(m => m.authorId === myUserId).forEach(m => {
+                    if(m.comments && m.comments.length > 0) {
+                        m.comments.forEach(c => {
+                            allMessages.push({
+                                ...c,
+                                memoryName: currentLang==='en'?(m.nameEn||m.name):m.name,
+                                memoryId: m.id,
+                                lat: m.lat, lng: m.lng
+                            });
+                        });
+                    }
+                });
+                
+                // Sort by timestamp desc
+                allMessages.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                if(allMessages.length === 0) {
+                    content.innerHTML = `<p class="text-center text-slate-400 mt-10">No messages yet.</p>`;
+                } else {
+                    allMessages.forEach(msg => {
+                         const div = document.createElement('div');
+                         div.className = 'bg-white p-3 rounded-lg border border-amber-100 mb-3 cursor-pointer hover:bg-amber-50 transition relative';
+                         
+                         const displayText = (msg.sourceLang && msg.translatedText && currentLang !== msg.sourceLang) ? msg.translatedText : msg.text;
+
+                         div.innerHTML = `
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="font-bold text-xs text-amber-800">${msg.author || 'Anonymous'}</span>
+                                <span class="text-[10px] text-slate-400">${msg.date}</span>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-2 line-clamp-2">"${displayText}"</p>
+                            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                                <span class="text-[10px] text-slate-400">${getText('commentedOn')} <span class="font-bold text-slate-500">${msg.memoryName}</span></span>
+                                <span class="text-[10px] text-blue-500 font-bold"><i class="fa-solid fa-reply mr-1"></i>${getText('reply')}</span>
+                            </div>
+                         `;
+                         
+                         div.onclick = () => {
+                             document.getElementById('profile-modal').classList.add('hidden');
+                             map.setView([msg.lat, msg.lng], 16);
+                             // Need to find the memory object again to show detail
+                             const originalMem = memories.find(m => m.id === msg.memoryId);
+                             if(originalMem) showDetail(originalMem);
+                         };
+                         content.appendChild(div);
+                    });
+                }
+                return;
+            }
+
+            // Logic for Uploads & Bookmarks
             let listToRender = [];
             if(tab === 'uploads') {
                 listToRender = memories.filter(m => m.authorId === myUserId);
