@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -18,7 +18,7 @@
     <!-- 引入 Chart.js 用于数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- 引入 Firebase SDK (Compat Version 保持原版配置) -->
+    <!-- 引入 Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
@@ -56,7 +56,7 @@
             background-color: #f0e4d4;
             color: #5c4b37;
             border: 2px solid #d4b996;
-            border-radius: 9999px; /* 更圆润的胶囊形 */
+            border-radius: 9999px;
             transition: all 0.2s ease;
         }
         .hand-drawn-btn:hover {
@@ -99,15 +99,26 @@
         .cursor-pin { cursor: crosshair !important; }
 
         /* 气味标记动画 */
-        .smell-marker { transition: transform 0.2s ease; }
+        .smell-marker { transition: all 0.3s ease; }
+        
+        /* NEW: 已读状态样式 (变淡+去饱和) */
+        .smell-marker.visited {
+            opacity: 0.65;
+            filter: grayscale(0.4);
+        }
+        .smell-marker.visited:hover {
+            opacity: 1;
+            filter: grayscale(0);
+        }
+
         .pulse-ring {
-            border-radius: 50%; height: 100%; width: 100%;
+            border-radius: 50%;
+            height: 100%; width: 100%;
             position: absolute; left: 0; top: 0;
             opacity: 0.0; border: 2px solid currentColor;
             pointer-events: none;
         }
         
-        /* 自己的记忆会有特殊的金色脉冲 */
         .smell-marker.is-mine .pulse-ring {
             border-color: #d97706 !important; /* Amber-600 */
             border-width: 3px;
@@ -128,22 +139,21 @@
             100% { transform: scale(1.8); opacity: 0.0; }
         }
 
-        /* 自定义标记内部 */
         .custom-icon-inner {
-            width: 100%; height: 100%; border-radius: 50%;
+            width: 100%;
+            height: 100%; border-radius: 50%;
             background-color: currentColor;
             box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             border: 2px solid #fffdf5;
             position: relative;
         }
-        /* 自己的记忆会有金边 */
         .smell-marker.is-mine .custom-icon-inner {
             border: 2px solid #fbbf24; /* Amber-400 */
         }
 
-        /* Emoji 叠加样式 */
         .emoji-overlay {
-            position: absolute; top: 50%; left: 50%;
+            position: absolute;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             line-height: 1; opacity: 0.95;
             pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -153,7 +163,8 @@
 
         /* 路线菜单 */
         .route-menu {
-            display: none; position: absolute;
+            display: none;
+            position: absolute;
             top: 3.5rem; right: 0; width: 16rem; 
             max-height: 60vh; 
             background: rgba(255, 253, 245, 0.98);
@@ -173,19 +184,21 @@
             margin-bottom: 2px;
         }
         .route-option-chip.selected {
-            background: #d4b996; color: white; border-color: #a67b5b;
+            background: #d4b996;
+            color: white; border-color: #a67b5b;
         }
 
-        /* 开场与天气 - 确保居中 */
+        /* 界面元素 */
         #intro-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(3px);
-            z-index: 5000; display: flex; justify-content: center; align-items: center;
+            z-index: 5000; display: flex;
+            justify-content: center; align-items: center;
             transition: opacity 0.8s ease-in-out;
         }
         
-        /* 标题栏折叠 */
         #header-content { transition: max-height 0.3s ease-out, opacity 0.3s ease-out; max-height: 500px; opacity: 1; overflow: hidden; }
         #header-content.collapsed { max-height: 0; opacity: 0; margin-top: 0; }
         #header-toggle-icon { transition: transform 0.3s ease; }
@@ -196,103 +209,41 @@
         
         #weather-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
         
-        /* 核心：色彩交融 CSS */
-        .leaflet-heatmap-layer {
-            opacity: 0.95 !important; 
-            mix-blend-mode: multiply; 
-        }
+        /* 色彩交融 */
+        .leaflet-heatmap-layer { opacity: 0.95 !important; mix-blend-mode: multiply; }
         
-        /* 水墨动效 */
         .ink-ripple {
-            position: absolute;
-            width: 20px;
-            height: 20px;
+            position: absolute; width: 20px; height: 20px;
             background: radial-gradient(circle, rgba(230, 81, 0, 0.9) 0%, rgba(255, 112, 67, 0.6) 30%, rgba(255, 171, 145, 0.2) 60%, rgba(255, 171, 145, 0) 80%);
             border-radius: 50%;
             transform: translate(-50%, -50%) scale(0.2);
-            pointer-events: none;
-            z-index: 9999;
-            mix-blend-mode: multiply; 
-            filter: blur(2px);
+            pointer-events: none; z-index: 9999;
+            mix-blend-mode: multiply; filter: blur(2px);
             animation: ink-spread-1-5s 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
-
         @keyframes ink-spread-1-5s {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
             30% { opacity: 0.7; }
             100% { transform: translate(-50%, -50%) scale(40); opacity: 0; }
         }
 
-        /* 标记淡入动画 */
-        .fade-in-marker {
-            opacity: 0;
-            animation: fadeInMarkerFast 0.8s ease-out forwards;
-        }
-        @keyframes fadeInMarkerFast {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .fade-in-marker { opacity: 0; animation: fadeInMarkerFast 0.8s ease-out forwards; }
+        @keyframes fadeInMarkerFast { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         #upload-modal.pointer-events-none { pointer-events: none; }
         #upload-modal.pointer-events-none * { pointer-events: none; }
 
-        /* 筛选菜单弹出动画 */
-        #filter-popup {
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            transform-origin: bottom left;
-        }
-        #filter-popup.hidden {
-            transform: scale(0.95);
-            opacity: 0;
-            pointer-events: none;
-            display: block; /* keep layout for transform */
-            visibility: hidden;
-        }
-        #filter-popup.not-hidden {
-            transform: scale(1);
-            opacity: 1;
-            visibility: visible;
-        }
-        /* 之前CSS写法的优化，确保正确 */
-        #filter-popup:not(.hidden) {
-            transform: scale(1);
-            opacity: 1;
-            visibility: visible;
-        }
+        #filter-popup { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform-origin: bottom left; }
+        #filter-popup.hidden { transform: scale(0.95); opacity: 0; pointer-events: none; display: block; visibility: hidden; }
+        #filter-popup.not-hidden { transform: scale(1); opacity: 1; visibility: visible; }
+        #filter-popup:not(.hidden) { transform: scale(1); opacity: 1; visibility: visible; }
 
-        /* 搜索框动画 */
-        .search-container {
-            transition: width 0.3s ease;
-            width: 140px; 
-            overflow: hidden;
-        }
-        .search-container.expanded {
-            width: 240px;
-        }
-        /* 找到地点的视觉圈圈 */
-        .search-circle {
-            animation: dashDraw 3s linear infinite;
-        }
+        .search-container { transition: width 0.3s ease; width: 140px; overflow: hidden; }
+        .search-container.expanded { width: 240px; }
+        .search-circle { animation: dashDraw 3s linear infinite; }
         
-        /* 统计图表容器 */
-        .chart-card {
-            background: #fffdf9;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .analysis-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            margin: 2px;
-            border-radius: 12px;
-            background: #fef3c7;
-            color: #92400e;
-            font-size: 0.7rem;
-            border: 1px solid #fcd34d;
-        }
+        .chart-card { background: #fffdf9; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .analysis-tag { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 12px; background: #fef3c7; color: #92400e; font-size: 0.7rem; border: 1px solid #fcd34d; }
         .report-box {
             background-image: linear-gradient(#fdfbf7 2px, transparent 2px), linear-gradient(90deg, #fdfbf7 2px, transparent 2px), linear-gradient(rgba(212, 185, 150, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 150, 0.3) 1px, transparent 1px);
             background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
@@ -300,36 +251,27 @@
             font-family: 'Noto Serif SC', serif;
         }
         
-        /* 评论区样式 */
-        .comment-bubble {
-            background: #fff;
-            padding: 8px 12px;
-            border-radius: 12px;
-            border-bottom-left-radius: 2px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
-            color: #475569;
-        }
-        .comment-meta {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            margin-bottom: 2px;
-            display: flex;
-            justify-content: space-between;
-        }
+        .comment-bubble { background: #fff; padding: 8px 12px; border-radius: 12px; border-bottom-left-radius: 2px; border: 1px solid #e2e8f0; margin-bottom: 8px; font-size: 0.85rem; color: #475569; }
+        .comment-meta { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; display: flex; justify-content: space-between; }
+        .no-pointer-events { pointer-events: none !important; }
 
-        /* NEW: 确保搜索图标不拦截点击事件 */
-        .no-pointer-events {
-            pointer-events: none !important;
+        /* NEW: Notification Dot */
+        .notification-dot {
+            position: absolute; top: -2px; right: -2px;
+            width: 12px; height: 12px;
+            background-color: #ef4444; /* Red */
+            border: 2px solid #fffdf5;
+            border-radius: 50%;
+            z-index: 100;
+            display: none; /* Hidden by default */
         }
+        .notification-dot.active { display: block; }
     </style>
 </head>
 <body class="text-slate-700">
 
-    <!-- 1. Firebase Configuration (完全恢复原版) -->
     <script>
-        // 核心：使用原始配置直连 Memories (London Inhale Project)
+        // Firebase Config
         const firebaseConfig = {
           apiKey: "AIzaSyBGp-AjGwAaKp4bCoqDoYZ51BCof4mCoo0",
           authDomain: "london-inhale.firebaseapp.com",
@@ -339,14 +281,11 @@
           appId: "1:94851508636:web:7d9d430f8dadef5c498059",
           measurementId: "G-CBPE8MQT0F"
         };
-
-        // Initialize Firebase (Compat)
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        // 移除 Auth，直接连接数据库
     </script>
 
-    <!-- Intro (优化后：只保留静态介绍词，默认为英文) -->
+    <!-- Intro -->
     <div id="intro-screen">
         <div class="hand-drawn-container p-10 max-w-2xl text-center shadow-2xl relative bg-white/90 border border-amber-100 mx-4">
             <div class="absolute -top-6 -left-6 text-6xl text-amber-300 opacity-80 transform -rotate-12"><i class="fa-solid fa-cloud"></i></div>
@@ -358,15 +297,11 @@
             <h1 class="text-5xl font-bold text-slate-800 italic mb-4 font-serif text-amber-900" id="intro-title">London, Inhale</h1>
             <div class="w-24 h-1 bg-amber-400 mx-auto mb-6 rounded-full"></div>
             
-            <!-- Intro Text Only -->
             <div id="loading-container">
                 <p class="text-xl text-slate-600 mb-6 font-serif leading-relaxed" id="intro-desc">
                     Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.
                 </p>
-                
-                <!-- 修改后的 Loading 文本 -->
                 <p class="text-sm text-amber-700 font-bold mb-6 italic" id="intro-status">Loading memories...</p>
-
                 <div class="text-amber-600 mb-8" id="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
             </div>
 
@@ -384,11 +319,9 @@
         <div id="parchment-overlay"></div>
     </div>
 
-    <!-- Top Left Header & Search -->
+    <!-- Top Left -->
     <div class="fixed top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none">
-        
         <div class="flex flex-col gap-2 pointer-events-auto max-w-[70%] md:max-w-md">
-            <!-- Header Box -->
             <div class="hand-drawn-container px-4 py-3 md:px-6 md:py-4 transition-all duration-300 group relative" id="header-box">
                 <button onclick="toggleLanguage()" class="absolute -top-2 -left-2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm border border-amber-300 hover:bg-amber-200">中/En</button>
                 <div class="flex justify-between items-center cursor-pointer" onclick="toggleHeader()">
@@ -406,7 +339,6 @@
                 </div>
             </div>
 
-            <!-- Search Bar -->
             <div class="hand-drawn-container flex items-center bg-white/90 p-1 search-container group" id="search-box">
                 <button class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-amber-600 shrink-0" onclick="toggleSearch()">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -415,11 +347,14 @@
             </div>
         </div>
 
-        <!-- Top Right Controls -->
+        <!-- Top Right -->
         <div class="flex flex-col gap-3 pointer-events-auto items-end relative">
-            <button onclick="toggleProfile()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative z-50 rounded-full" title="Profile"><i class="fa-regular fa-user text-slate-600"></i></button>
+            <!-- NEW: Added notification dot here -->
+            <button onclick="toggleProfile()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative z-50 rounded-full" title="Profile">
+                <i class="fa-regular fa-user text-slate-600"></i>
+                <div id="profile-notify-dot" class="notification-dot"></div>
+            </button>
             
-            <!-- NEW: Analysis Button -->
             <button onclick="toggleAnalysis()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm rounded-full" title="Analysis">
                 <i class="fa-solid fa-chart-pie text-slate-600 hover:text-purple-600"></i>
             </button>
@@ -446,7 +381,6 @@
 
     <!-- Bottom Action Bar -->
     <div class="fixed bottom-6 left-4 right-4 z-[1000] flex justify-between items-end pointer-events-none">
-        <!-- Bottom Left: Filters -->
         <div class="relative pointer-events-auto">
             <div id="filter-popup" class="hidden absolute bottom-14 left-0 w-64 hand-drawn-container p-4 mb-2 origin-bottom-left z-20 bg-white/95">
                  <div class="flex justify-between items-center mb-3">
@@ -465,7 +399,6 @@
             </button>
         </div>
 
-        <!-- Bottom Right: Upload -->
         <div class="pointer-events-auto">
             <button onclick="startUploadProcess()" class="bg-amber-700 text-white px-5 py-3 md:px-8 md:py-4 rounded-full shadow-xl hover:bg-amber-800 hover:scale-105 transition flex items-center gap-2 font-serif italic text-base hand-drawn-btn border-amber-800">
                 <i class="fa-solid fa-plus text-lg"></i>
@@ -490,15 +423,23 @@
 
     <!-- Detail Panel -->
     <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col">
+        <!-- NEW: Bookmark Button in header -->
+        <div class="absolute top-4 left-4 z-10">
+            <button id="bookmark-btn" onclick="toggleCurrentBookmark()" class="text-slate-400 hover:text-amber-500 text-xl transition transform hover:scale-110">
+                <i class="fa-regular fa-bookmark"></i>
+            </button>
+        </div>
         <button onclick="closeDetailPanel()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-arrow-right-long text-xl"></i></button>
+        
         <div id="detail-content" class="mt-8 mb-4 flex-grow overflow-y-auto"></div>
+        
         <div class="p-4 bg-amber-100/80 border-t border-amber-200 backdrop-blur-sm -mx-6 -mb-6 flex gap-2">
             <input type="text" id="comment-input" class="flex-grow p-2 rounded-lg border border-amber-300 bg-white/80 text-sm" placeholder="Write a comment...">
             <button id="send-comment-btn" onclick="sendComment()" class="bg-amber-600 text-white p-2 rounded-lg hover:bg-amber-700 text-sm">Send</button>
         </div>
     </div>
 
-    <!-- Profile Modal -->
+    <!-- Profile Modal (Updated Tabs) -->
     <div id="profile-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="hand-drawn-container w-[95%] md:w-full md:max-w-lg min-h-[500px] max-h-[80vh] flex flex-col bg-amber-50/95 relative">
             <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -514,15 +455,16 @@
                 </div>
                 <p class="text-xs text-slate-500 mt-1" id="user-id-display">ID: ...</p>
             </div>
+            <!-- NEW: Added Bookmarks Tab -->
             <div class="flex border-b border-amber-200">
                 <button onclick="switchProfileTab('uploads')" id="tab-uploads" class="flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50">My Uploads</button>
-                <button class="flex-1 py-3 text-sm font-bold text-slate-400 cursor-not-allowed">Messages (Dev)</button>
+                <button onclick="switchProfileTab('bookmarks')" id="tab-bookmarks" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent">Bookmarks</button>
             </div>
             <div class="flex-grow overflow-y-auto p-4" id="profile-content"></div>
         </div>
     </div>
 
-    <!-- NEW: Analysis & Stats Modal (Refined) -->
+    <!-- Analysis Modal -->
     <div id="analysis-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="hand-drawn-container w-[95%] md:w-full md:max-w-4xl max-h-[90vh] flex flex-col bg-amber-50/98 relative overflow-hidden">
             <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -533,48 +475,35 @@
             </div>
 
             <div class="flex-grow overflow-y-auto p-6 space-y-6 no-scrollbar">
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Cultural Insight Section -->
                     <div class="chart-card">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="font-bold text-slate-700 text-sm">Category Frequency</h3>
-                            <select id="analysis-culture-select" onchange="updateCultureChart()" class="text-xs border border-amber-300 rounded-md p-1 bg-white text-slate-600 outline-none">
-                                <!-- Populated by JS -->
-                            </select>
+                             <select id="analysis-culture-select" onchange="updateCultureChart()" class="text-xs border border-amber-300 rounded-md p-1 bg-white text-slate-600 outline-none"></select>
                         </div>
                         <div class="h-48 w-full relative">
                             <canvas id="culture-scent-chart"></canvas>
                         </div>
                     </div>
 
-                    <!-- Smart Keyword Clustering -->
                     <div class="chart-card flex flex-col">
                         <h3 class="font-bold text-slate-700 text-sm mb-4">Trending Scent Keywords</h3>
-                        <div id="keyword-cloud" class="flex-grow bg-white/50 rounded-lg p-3 border border-amber-100 flex flex-wrap content-start gap-1 overflow-y-auto max-h-48">
-                            <!-- Dynamic Keywords go here -->
-                            <span class="text-xs text-slate-400 italic">Select a culture to analyze specific keywords...</span>
-                        </div>
+                        <div id="keyword-cloud" class="flex-grow bg-white/50 rounded-lg p-3 border border-amber-100 flex flex-wrap content-start gap-1 overflow-y-auto max-h-48"></div>
                     </div>
                 </div>
 
-                <!-- Generated Report -->
                 <div class="chart-card report-box bg-white p-4 relative">
                     <i class="fa-solid fa-quote-left text-4xl text-amber-200 absolute top-2 left-2 opacity-50"></i>
                     <h3 class="font-bold text-amber-900 text-sm mb-2 relative z-10 font-serif">Cultural Olfactory Report</h3>
-                    <div id="cultural-report-text" class="text-sm text-slate-700 leading-relaxed italic relative z-10 font-serif">
-                        Loading analysis...
-                    </div>
+                    <div id="cultural-report-text" class="text-sm text-slate-700 leading-relaxed italic relative z-10 font-serif">Loading analysis...</div>
                 </div>
 
-                <!-- Emotion Distribution -->
                 <div class="chart-card">
-                    <h3 class="font-bold text-slate-700 text-sm mb-4">City Mood Distribution</h3>
+                     <h3 class="font-bold text-slate-700 text-sm mb-4">City Mood Distribution</h3>
                     <div class="h-48 w-full relative flex justify-center">
                         <canvas id="emotion-chart"></canvas>
                     </div>
                 </div>
-
             </div>
 
             <div class="p-4 border-t border-amber-200 bg-amber-100/30">
@@ -602,14 +531,14 @@
     </div>
 
     <script>
-        // 配置数据
+        // Data & Translations
         const translations = {
             zh: {
                 introTitle: "London, Inhale", introDesc: "欢迎来到伦敦气味情绪地图。<br>这是一次关于气味、记忆与城市归属感的探索。", startBtn: "开启探索", langBtn: "Switch to English",
                 title: "London, Inhale", subtitle: "气味 · 记忆 · 归属感", dailyScent: "今日气味",
                 routeTitle: "定制气味漫步路线", routeDesc: "多选标签，生成步行路线", emotion: "情绪", culture: "文化背景", scent: "气味类别", selectAll: "全选", generate: "生成路线 ✨",
                 filterTitle: "气味记忆分类", reset: "重置条件", upload: "上传记忆",
-                myProfile: "我的档案", myUploads: "我的发布", messages: "消息",
+                myProfile: "我的档案", myUploads: "我的发布", myBookmarks: "我的收藏", messages: "消息",
                 step1Title: "选择地点", step1Desc: "鼠标已变为图钉模式，请点击地图。", step2Title: "你的文化背景", step3Title: "气味详情 (可多选)", step4Title: "那一刻的情绪", step5Title: "强度与记忆", step6Title: "故事与图片",
                 prev: "上一步", next: "下一步", complete: "完成上传", update: "更新记忆", intensity: "气味强度", memory: "记忆深刻程度",
                 weak: "弱", strong: "强", vague: "模糊", deep: "刻骨", comments: "评论", send: "发送",
@@ -620,14 +549,15 @@
                 uploadToastTitle: "开始上传", uploadToastMsg: "请在地图上点击你闻到气味的位置",
                 successToast: "上传成功", successMsg: "你的气味记忆已添加到伦敦地图中。", processing: "处理中...",
                 searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中...",
-                fillName: "请填写气味名称", selectCategory: "请选择气味类别", selectCulture: "请选择文化背景", selectEmotion: "请选择一种情绪"
+                fillName: "请填写气味名称", selectCategory: "请选择气味类别", selectCulture: "请选择文化背景", selectEmotion: "请选择一种情绪",
+                bookmarkAdded: "已收藏", bookmarkRemoved: "已取消收藏"
             },
             en: {
                 introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", startBtn: "Start Exploring", langBtn: "切换到中文",
                 title: "London, Inhale", subtitle: "Scent · Memory · Belonging", dailyScent: "Daily Scent",
                 routeTitle: "Custom Route", routeDesc: "Select tags for walking route", emotion: "Emotion", culture: "Culture", scent: "Scent", selectAll: "Select All", generate: "Generate ✨",
                 filterTitle: "Filters", reset: "Reset", upload: "Memory",
-                myProfile: "Profile", myUploads: "Uploads", messages: "Messages",
+                myProfile: "Profile", myUploads: "Uploads", myBookmarks: "Bookmarks", messages: "Messages",
                 step1Title: "Select Location", step1Desc: "Map is in pin mode. Please click on the map.", step2Title: "Your Cultural Background", step3Title: "Scent Details (Multi-select)", step4Title: "Emotion at that Moment", step5Title: "Intensity & Memory", step6Title: "Story & Image",
                 prev: "Back", next: "Next", complete: "Submit", update: "Update Memory", intensity: "Scent Intensity", memory: "Memory Depth",
                 weak: "Weak", strong: "Strong", vague: "Vague", deep: "Deep", comments: "Comments", send: "Send",
@@ -638,13 +568,13 @@
                 uploadToastTitle: "Start Upload", uploadToastMsg: "Please click the location on the map.",
                 successToast: "Upload Success", successMsg: "Your scent memory has been added to the London map.", processing: "Processing...",
                 searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating...",
-                fillName: "Please enter scent name", selectCategory: "Please select a category", selectCulture: "Please select cultural background", selectEmotion: "Please select an emotion"
+                fillName: "Please enter scent name", selectCategory: "Please select a category", selectCulture: "Please select cultural background", selectEmotion: "Please select an emotion",
+                bookmarkAdded: "Saved to Bookmarks", bookmarkRemoved: "Removed from Bookmarks"
             }
         };
 
         let currentLang = 'en';
         const categories = { 'Floral': { color: '#F4A4A4', label: '花香调', en: 'Floral' }, 'Fruity': { color: '#F7C5A0', label: '果香调', en: 'Fruity' }, 'Woody': { color: '#D4B996', label: '木质调', en: 'Woody' }, 'Fresh': { color: '#A0C4FF', label: '清新调', en: 'Fresh' }, 'Sweet': { color: '#FCEEB5', label: '甜食', en: 'Sweet' }, 'Food': { color: '#FF8C8C', label: '食物', en: 'Food' }, 'Burnt': { color: '#B0B7C0', label: '焦味', en: 'Burnt' }, 'Mall': { color: '#DCD0FF', label: '商场', en: 'Mall' }, 'Dusty': { color: '#C7C1BD', label: '尘土', en: 'Dusty' }, 'Animalic': { color: '#A67B5B', label: '动物', en: 'Animalic' }, 'Rotten': { color: '#4A4A4A', label: '腐烂', en: 'Rotten' } };
-        // 增加厌恶
         const emotions = [ { label: '温暖', en: 'Warm', emoji: '🥰' }, { label: '怀旧', en: 'Nostalgic', emoji: '🧸' }, { label: '平静', en: 'Calm', emoji: '😌' }, { label: '喜悦', en: 'Joyful', emoji: '🥳' }, { label: '惊讶', en: 'Surprised', emoji: '😲' }, { label: '悲伤', en: 'Sad', emoji: '🥺' }, { label: '不安', en: 'Anxious', emoji: '😰' }, { label: '愤怒', en: 'Angry', emoji: '😡' }, { label: '疲惫', en: 'Tired', emoji: '😫' }, { label: '迷茫', en: 'Lost', emoji: '😵‍💫' }, { label: '害怕', en: 'Scared', emoji: '😖' }, { label: '厌恶', en: 'Disgust', emoji: '🤢' } ];
         const cultures = [ 
             { id: 'British', label: '英国', en: 'British', color: '#3b82f6' }, 
@@ -659,37 +589,39 @@
             { id: 'Other', label: '其他', en: 'Other', color: '#94a3b8' } 
         ];
 
-        let memories = [], myUploads = [];
+        let memories = [];
         let map, markersLayer = new L.LayerGroup(), heatLayerGroup = new L.LayerGroup(), resonanceLayer = new L.LayerGroup(), pathLayer = new L.LayerGroup(), territoryLayer = new L.LayerGroup();
         let searchLayer = new L.LayerGroup(); 
         let currentStep = 1, uploadData = { categories: [] }, tempMarker = null;
         let activeFilters = { cultures: [], emotions: [], categories: [] }, routeCriteria = { emotions: [], cultures: [], categories: [] };
         let isHeatmapMode = false;
         let isDataLoaded = false;
-        let editingId = null; // 用于编辑模式的 ID
+        let editingId = null;
 
-        // --- 用户身份逻辑 (LocalStorage) ---
-        // 恢复随机ID逻辑，但保留持久性
+        // --- NEW: Local Persistence (User Identity & State) ---
         let myUserId = localStorage.getItem('london_inhale_uid');
         if (!myUserId) {
             myUserId = 'user-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
             localStorage.setItem('london_inhale_uid', myUserId);
         }
-        
         let myUserName = localStorage.getItem('london_inhale_name') || "Guest User";
         
-        // 核心修改：移除 Auth 初始化
+        // Load Bookmarks & Visited from LocalStorage
+        let bookmarkedIds = JSON.parse(localStorage.getItem('li_bookmarks') || '[]');
+        let visitedIds = JSON.parse(localStorage.getItem('li_visited') || '[]');
+        
+        // Notification Logic
+        let lastKnownCommentCount = parseInt(localStorage.getItem('li_last_comment_count') || '0');
+
         window.onload = function() {
             initMap();
             setupRealtimeListener(); 
             updateProfileUI();
             safeUpdateTexts(); 
-            // initWeatherEffect(); // 暂时关闭天气以提高性能，如有需要可取消注释
         };
 
-        // --- Firebase 核心监听 ---
+        // --- Firebase Core ---
         function setupRealtimeListener() {
-            // 核心修改：使用根集合 memories，直接对应您的数据库项目设置
             db.collection("memories").orderBy('timestamp', 'desc').onSnapshot((snapshot) => {
                 memories = [];
                 snapshot.forEach((doc) => {
@@ -698,30 +630,27 @@
                 
                 isDataLoaded = true;
                 
-                // 更新 UI 状态
+                // Update Loading UI
                 const loadingContainer = document.getElementById('loading-spinner');
                 const startBtn = document.getElementById('start-btn');
                 const statusEl = document.getElementById('intro-status');
                 
-                // 显示状态文字
-                if(statusEl) {
-                    statusEl.innerHTML = "Loading memories...";
-                }
-                
+                if(statusEl) statusEl.innerHTML = "Loading memories...";
                 if(loadingContainer) loadingContainer.style.display = 'none';
                 if(startBtn) startBtn.classList.remove('hidden');
-
-                // 加载完成后移除状态文字，保持干净
                 if(statusEl) statusEl.style.display = 'none';
 
                 renderMarkers();
                 renderDailyScent();
-                // 仅当用户在个人档案页面时才更新
+                checkNotifications(); // Check for new comments
+
+                // Refresh Profile if open
                 if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                    switchProfileTab('uploads');
+                    const activeTab = document.getElementById('tab-bookmarks').classList.contains('border-amber-600') ? 'bookmarks' : 'uploads';
+                    switchProfileTab(activeTab);
                 }
                 
-                // 如果详情页打开着，实时刷新评论
+                // Refresh Detail if open
                 const detailContent = document.getElementById('detail-content');
                 if (detailContent && detailContent.hasAttribute('data-memory-id')) {
                     const activeId = detailContent.getAttribute('data-memory-id');
@@ -735,202 +664,139 @@
             });
         }
 
-        // --- NEW: Analysis Logic ---
-        var cultureChart = null; // Changed from let to var to avoid re-declaration errors
-        var emotionChart = null; // Changed from let to var
+        // --- NEW: Notification Check ---
+        function checkNotifications() {
+            // Count total comments on MY posts
+            let currentTotalComments = 0;
+            memories.filter(m => m.authorId === myUserId).forEach(m => {
+                if(m.comments) currentTotalComments += m.comments.length;
+            });
+
+            const dot = document.getElementById('profile-notify-dot');
+            
+            // If we have more comments now than last time we checked
+            if (currentTotalComments > lastKnownCommentCount) {
+                dot.classList.add('active');
+            } else {
+                dot.classList.remove('active');
+            }
+        }
+
+        // --- Analysis Charts (Unchanged Logic, simplified render) ---
+        var cultureChart = null;
+        var emotionChart = null;
 
         function toggleAnalysis() {
             const modal = document.getElementById('analysis-modal');
             modal.classList.remove('hidden');
-            
-            // Populate Culture Select
             const select = document.getElementById('analysis-culture-select');
             select.innerHTML = cultures.map(c => `<option value="${c.id}">${currentLang==='en'?c.en:c.label}</option>`).join('');
-            
-            // Init Charts
-            setTimeout(() => {
-                updateCultureChart();
-                updateEmotionChart();
-            }, 100);
+            setTimeout(() => { updateCultureChart(); updateEmotionChart(); }, 100);
         }
 
-        // --- 核心更新：智能关键词分析与报告生成 ---
         function updateCultureChart() {
             const selectedCultureId = document.getElementById('analysis-culture-select').value;
             const selectedCultureLabel = cultures.find(c => c.id === selectedCultureId)?.[currentLang==='en'?'en':'label'];
             const filtered = memories.filter(m => m.culture === selectedCultureId);
-            
-            // 1. 常规分类统计
             const catCounts = {};
             Object.keys(categories).forEach(k => catCounts[k] = 0);
-            const emotionCounts = {}; // Local emotion count for this culture
+            const emotionCounts = {}; 
             
-            filtered.forEach(m => {
-                if(m.categories) m.categories.forEach(c => { if(catCounts[c] !== undefined) catCounts[c]++; });
-                if(m.emotion) { emotionCounts[m.emotion] = (emotionCounts[m.emotion] || 0) + 1; }
-            });
-
-            // 2. 智能关键词统计 (Smart Clustering)
+            // Keyword Analysis
             const stopWords = ['the', 'a', 'an', 'of', 'in', 'and', 'with', 'smell', 'scent', 'like', 'is', 'de', 'le', 'la', '的', '味', '气味', '味道', '香'];
             const wordCounts = {};
             
             filtered.forEach(m => {
-                // 简单分词逻辑：转小写，移除标点，按空格分割
+                if(m.categories) m.categories.forEach(c => { if(catCounts[c] !== undefined) catCounts[c]++; });
+                if(m.emotion) { emotionCounts[m.emotion] = (emotionCounts[m.emotion] || 0) + 1; }
                 const cleanName = (m.name || "").toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
                 const tokens = cleanName.split(/\s+/);
-                
                 tokens.forEach(token => {
-                    if(token.length > 1 && !stopWords.includes(token)) {
-                        // 简单的归一化: cold/chilly -> cold (这里做模拟，实际需要更复杂的NLP)
-                        // 为简单起见，这里只统计完全匹配
+                     if(token.length > 1 && !stopWords.includes(token)) {
                         wordCounts[token] = (wordCounts[token] || 0) + 1;
                     }
                 });
             });
 
-            // Get Top Keywords
             const sortedKeywords = Object.entries(wordCounts).sort((a,b) => b[1] - a[1]).slice(0, 8);
             const keywordCloud = document.getElementById('keyword-cloud');
             if(sortedKeywords.length > 0) {
                 keywordCloud.innerHTML = sortedKeywords.map(([word, count]) => {
-                    const size = 0.7 + (Math.min(count, 5) * 0.1); // Scale font size
+                    const size = 0.7 + (Math.min(count, 5) * 0.1); 
                     return `<span class="analysis-tag" style="font-size: ${size}rem">${word} (${count})</span>`;
                 }).join('');
             } else {
                 keywordCloud.innerHTML = '<span class="text-xs text-slate-400 italic">No specific keywords found yet.</span>';
             }
 
-            // 3. Update Chart
             const ctx = document.getElementById('culture-scent-chart').getContext('2d');
             const dataVals = Object.keys(catCounts).map(k => catCounts[k]);
             const labels = Object.keys(catCounts).map(k => currentLang==='en' ? categories[k].en : categories[k].label);
             const bgColors = Object.keys(catCounts).map(k => categories[k].color);
 
             if(cultureChart) cultureChart.destroy();
-            
             cultureChart = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Frequency',
-                        data: dataVals,
-                        backgroundColor: bgColors,
-                        borderWidth: 1,
-                        borderColor: '#d4b996'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
+                data: { labels: labels, datasets: [{ label: 'Frequency', data: dataVals, backgroundColor: bgColors, borderWidth: 1, borderColor: '#d4b996' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
-
-            // 4. Generate Report (The "AI" part)
             generateCulturalReport(selectedCultureLabel, catCounts, sortedKeywords, emotionCounts, filtered.length);
         }
 
         function generateCulturalReport(cultureName, catCounts, topKeywords, emoCounts, totalCount) {
             const reportBox = document.getElementById('cultural-report-text');
-            if(totalCount === 0) {
-                reportBox.innerHTML = "Not enough data to generate a report for this culture.";
-                return;
-            }
-
-            // Find top category
+            if(totalCount === 0) { reportBox.innerHTML = "Not enough data to generate a report for this culture."; return; }
             let topCat = Object.entries(catCounts).sort((a,b) => b[1] - a[1])[0];
             const topCatName = topCat ? (currentLang==='en'?categories[topCat[0]].en : categories[topCat[0]].label) : "None";
-
-            // Find top emotion
             let topEmo = Object.entries(emoCounts).sort((a,b) => b[1] - a[1])[0];
-            // Try to translate emotion if possible, or use raw
             let topEmoName = "Mixed";
             if(topEmo) {
                 const eObj = emotions.find(e => e.label === topEmo[0] || e.en === topEmo[0]);
                 topEmoName = eObj ? (currentLang==='en'?eObj.en:eObj.label) : topEmo[0];
             }
-
-            // Construct Text
             let text = "";
             if (currentLang === 'zh') {
-                text = `在 <b>${cultureName}</b> 的文化图景中，共收集了 ${totalCount} 条气味记忆。
-                数据表明，该群体对 <b>${topCatName}</b> 类的气味最为敏感。
-                ${topKeywords.length > 0 ? `在具体描述中，<b>“${topKeywords[0][0]}”</b> 是出现频率最高的词汇，这暗示了该气味在该文化记忆中的独特性。` : ""}
-                总体而言，这些气味唤起的主要情绪是 <b>${topEmoName}</b>。`;
+                text = `在 <b>${cultureName}</b> 的文化图景中，共收集了 ${totalCount} 条气味记忆。该群体对 <b>${topCatName}</b> 类的气味最为敏感。${topKeywords.length > 0 ? `在具体描述中，<b>“${topKeywords[0][0]}”</b> 是出现频率最高的词汇，暗示了该气味在该文化记忆中的独特性。` : ""} 总体而言，这些气味唤起的主要情绪是 <b>${topEmoName}</b>。`;
             } else {
-                text = `In the olfactory landscape of <b>${cultureName}</b> culture (based on ${totalCount} entries), 
-                <b>${topCatName}</b> scents are most predominant. 
-                ${topKeywords.length > 0 ? `The specific descriptor <b>"${topKeywords[0][0]}"</b> appears frequently, highlighting a unique cultural marker.` : ""}
-                Overall, the prevailing emotion evoked by these scents is <b>${topEmoName}</b>.`;
+                text = `In the olfactory landscape of <b>${cultureName}</b> culture (based on ${totalCount} entries), <b>${topCatName}</b> scents are most predominant. ${topKeywords.length > 0 ? `The specific descriptor <b>"${topKeywords[0][0]}"</b> appears frequently, highlighting a unique cultural marker.` : ""} Overall, the prevailing emotion evoked by these scents is <b>${topEmoName}</b>.`;
             }
-            
             reportBox.innerHTML = text;
         }
 
         function updateEmotionChart() {
-            const counts = {};
-            emotions.forEach(e => counts[e.label] = 0);
-            memories.forEach(m => {
-                const em = emotions.find(e => e.label === m.emotion || e.en === m.emotion);
-                if(em) counts[em.label]++;
-            });
-
+            const counts = {}; emotions.forEach(e => counts[e.label] = 0);
+            memories.forEach(m => { const em = emotions.find(e => e.label === m.emotion || e.en === m.emotion); if(em) counts[em.label]++; });
             const ctx = document.getElementById('emotion-chart').getContext('2d');
             const dataVals = emotions.map(e => counts[e.label]);
             const labels = emotions.map(e => `${e.emoji} ${currentLang==='en'?e.en:e.label}`);
-            
             if(emotionChart) emotionChart.destroy();
-
             emotionChart = new Chart(ctx, {
                 type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dataVals,
-                        backgroundColor: ['#fca5a5', '#fdba74', '#fde047', '#86efac', '#67e8f9', '#93c5fd', '#c4b5fd', '#f0abfc', '#cbd5e1', '#94a3b8', '#475569', '#4d7c0f'], // Added color for Disgust
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
-                }
+                data: { labels: labels, datasets: [{ data: dataVals, backgroundColor: ['#fca5a5', '#fdba74', '#fde047', '#86efac', '#67e8f9', '#93c5fd', '#c4b5fd', '#f0abfc', '#cbd5e1', '#94a3b8', '#475569', '#4d7c0f'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } } }
             });
         }
 
         function exportDataAsCSV() {
-            if(!memories || memories.length === 0) {
-                showToast("Export", "No data to export.");
-                return;
-            }
+            if(!memories || memories.length === 0) { showToast("Export", "No data to export."); return; }
             const headers = ["ID", "Name (CN)", "Name (EN)", "Culture", "Categories", "Emotion", "Intensity", "Date", "Lat", "Lng", "Story"];
             const rows = memories.map(m => {
                 const cats = m.categories ? m.categories.join(";") : "";
                 const cleanStory = (m.story || "").replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""'); 
-                return [
-                    m.id, `"${m.name || ''}"`, `"${m.nameEn || ''}"`, m.culture, `"${cats}"`, m.emotion, m.intensity, m.date, m.lat, m.lng, `"${cleanStory}"`
-                ].join(",");
+                return [m.id, `"${m.name || ''}"`, `"${m.nameEn || ''}"`, m.culture, `"${cats}"`, m.emotion, m.intensity, m.date, m.lat, m.lng, `"${cleanStory}"`].join(",");
             });
             const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", "london_inhale_memories.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function startExperience() {
             const intro = document.getElementById('intro-screen');
             intro.style.opacity = '0';
-            setTimeout(() => {
-                intro.style.display = 'none';
-                initUI();
-            }, 800);
+            setTimeout(() => { intro.style.display = 'none'; initUI(); }, 800);
         }
 
         function getText(key) { return translations[currentLang][key] || key; }
@@ -940,20 +806,12 @@
         function toggleLanguage() {
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
             safeUpdateTexts();
-            if(!document.getElementById('analysis-modal').classList.contains('hidden')) {
-                updateCultureChart();
-                updateEmotionChart();
-            }
+            if(!document.getElementById('analysis-modal').classList.contains('hidden')) { updateCultureChart(); updateEmotionChart(); }
         }
 
         function safeUpdateTexts() {
             safeSetHTML('intro-title', getText('introTitle'));
-            // 静态文本部分 (intro-desc) 已经固定，不再需要在这里更新
-            // 只在切语言时更新
             safeSetHTML('intro-desc', getText('introDesc'));
-
-            // 注意：已经移除了 status 的更新逻辑
-
             safeSetText('intro-btn', getText('startBtn'));
             safeSetText('lang-btn-intro', getText('langBtn'));
             safeSetText('header-title', getText('title'));
@@ -965,44 +823,17 @@
             safeSetText('filter-title', getText('filterTitle'));
             safeSetText('reset-btn', getText('reset'));
             safeSetText('upload-main-btn', getText('upload'));
+            
             safeSetText('tab-uploads', getText('myUploads'));
+            safeSetText('tab-bookmarks', getText('myBookmarks'));
+
             document.getElementById('location-search-input').placeholder = getText('searchPlaceholder');
             renderFilters();
             renderRouteMenu();
             renderDailyScent();
         }
 
-        function initWeatherEffect() {
-            // ... (keeping weather logic commented out if performance is a concern, or uncomment to enable)
-            const canvas = document.getElementById('weather-canvas');
-            if (!canvas) return; 
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            let raindrops = [];
-            for (let i = 0; i < 100; i++) raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, length: Math.random() * 20 + 10, opacity: Math.random() * 0.5 + 0.2, speed: Math.random() * 10 + 5 });
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = 'rgba(173, 216, 230, 0.5)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                for (let i = 0; i < raindrops.length; i++) {
-                    let d = raindrops[i];
-                    ctx.moveTo(d.x, d.y);
-                    ctx.lineTo(d.x, d.y + d.length);
-                    d.y += d.speed;
-                    if (d.y > canvas.height) { d.y = -d.length; d.x = Math.random() * canvas.width; }
-                }
-                ctx.stroke();
-                requestAnimationFrame(draw);
-            }
-            draw();
-        }
-
-        function toggleFilterPopup() {
-            const popup = document.getElementById('filter-popup');
-            popup.classList.toggle('hidden');
-        }
+        function toggleFilterPopup() { document.getElementById('filter-popup').classList.toggle('hidden'); }
 
         function renderFilters() {
             const dynamicContent = document.getElementById('filter-dynamic-content');
@@ -1020,7 +851,6 @@
                     const emoji = item.emoji ? item.emoji : '';
                     const color = item.val?.color;
                     const cultureColor = item.color ? `<span class="w-2 h-2 rounded-full" style="background:${item.color}"></span>` : '';
-                    
                     btn.className = 'px-2 py-1 rounded-full text-[10px] border border-amber-200 text-slate-600 hover:bg-amber-50 transition filter-btn hand-drawn-btn flex items-center gap-1';
                     btn.innerHTML = `${color ? `<span class="w-2 h-2 rounded-full" style="background:${color}"></span>` : cultureColor} ${emoji} ${label}`;
                     btn.onclick = () => toggleFilter(type, item.key || item.id || item.label, btn);
@@ -1056,7 +886,6 @@
             createSection(getText('scent'), 'categories', Object.entries(categories).map(([k,v])=>({key:k, val:v})));
         }
 
-        // --- Logic ---
         function toggleFilter(type, value, btn) {
             const idx = activeFilters[type].indexOf(value);
             if(idx > -1) { activeFilters[type].splice(idx, 1); btn.classList.remove('active'); }
@@ -1088,95 +917,48 @@
             else if(type==='emotions') all = emotions.map(e=>e.label);
             else all = Object.keys(categories);
             const list = routeCriteria[type];
-            const container = document.getElementById(`route-${type}-inner`);
-            const chips = container.querySelectorAll('.route-option-chip');
+            const chips = document.getElementById(`route-${type}-inner`).querySelectorAll('.route-option-chip');
             const isAll = list.length === all.length;
             if(isAll) { routeCriteria[type] = []; chips.forEach(c=>c.classList.remove('selected')); }
             else { routeCriteria[type] = [...all]; chips.forEach(c=>c.classList.add('selected')); }
         }
 
-        // --- Map Logic ---
         function initMap() {
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.505, -0.09], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, opacity: 0.9 }).addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
-            heatLayerGroup.addTo(map); markersLayer.addTo(map); pathLayer.addTo(map); resonanceLayer.addTo(map);
-            searchLayer.addTo(map); // Add search layer
+            heatLayerGroup.addTo(map); markersLayer.addTo(map); pathLayer.addTo(map); resonanceLayer.addTo(map); searchLayer.addTo(map);
             
             map.on('click', (e) => { 
                 document.getElementById('route-menu').style.display = 'none';
                 document.getElementById('filter-popup').classList.add('hidden');
                 document.getElementById('search-box').classList.remove('expanded'); 
-                searchLayer.clearLayers(); // Clear search circle on map click
-                
+                searchLayer.clearLayers(); 
                 if(document.getElementById('upload-modal').classList.contains('hidden') === false && currentStep === 1) {
                     handleMapClickForUpload(e.latlng);
                 }
             });
         }
 
-        // --- NEW: Location Search Function ---
-        function toggleSearch() {
-            document.getElementById('search-box').classList.toggle('expanded');
-            document.getElementById('location-search-input').focus();
-        }
+        function toggleSearch() { document.getElementById('search-box').classList.toggle('expanded'); document.getElementById('location-search-input').focus(); }
 
         function searchLocation() {
             const query = document.getElementById('location-search-input').value;
             if (!query) return;
-
-            // Simple nominatim search limited to UK preference
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    return res.json();
-                })
+                .then(res => { if (!res.ok) throw new Error('Network response was not ok'); return res.json(); })
                 .then(data => {
                     if (data && data.length > 0) {
-                        const lat = parseFloat(data[0].lat);
-                        const lon = parseFloat(data[0].lon);
-                        const latlng = [lat, lon];
+                        const latlng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
                         map.flyTo(latlng, 15);
-                        
-                        // Clear old search results
                         searchLayer.clearLayers();
-                        
-                        // Draw hand-drawn style circle
-                        // 修正：interactive: false 解决点击问题
-                        L.circle(latlng, {
-                            color: '#d97706', // Amber-600
-                            fillColor: '#fcd34d',
-                            fillOpacity: 0.1,
-                            radius: 300,
-                            weight: 2,
-                            dashArray: '8, 8',
-                            className: 'search-circle',
-                            interactive: false // 关键：不允许交互，让点击穿透到地图
-                        }).addTo(searchLayer).bindPopup("<b>Found Area</b>"); // remove openPopup to keep it clean
-
-                        // NEW: Add marker for precise location visualization (Requested Optimization)
-                        // 使用明确的 DIV 图标和 CSS 类来确保点击穿透
-                        const searchIcon = L.divIcon({
-                            className: 'no-pointer-events', // 关键CSS类
-                            html: '<div style="font-size: 30px; color: #ef4444; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"><i class="fa-solid fa-location-dot fa-bounce"></i></div>',
-                            iconSize: [30, 40],
-                            iconAnchor: [15, 40]
-                        });
-
-                        L.marker(latlng, {
-                            icon: searchIcon,
-                            interactive: false // Leaflet 层面禁止交互
-                        }).addTo(searchLayer);
-
+                        L.circle(latlng, { color: '#d97706', fillColor: '#fcd34d', fillOpacity: 0.1, radius: 300, weight: 2, dashArray: '8, 8', className: 'search-circle', interactive: false }).addTo(searchLayer).bindPopup("<b>Found Area</b>");
+                        const searchIcon = L.divIcon({ className: 'no-pointer-events', html: '<div style="font-size: 30px; color: #ef4444; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"><i class="fa-solid fa-location-dot fa-bounce"></i></div>', iconSize: [30, 40], iconAnchor: [15, 40] });
+                        L.marker(latlng, { icon: searchIcon, interactive: false }).addTo(searchLayer);
                         showToast("Search", getText('locationFound') + ": " + (data[0].display_name.split(',')[0]));
-                    } else {
-                        showToast("Search", "Location not found");
-                    }
+                    } else { showToast("Search", "Location not found"); }
                 })
-                .catch(err => {
-                    console.warn("Search failed:", err);
-                    showToast("Error", "Search unavailable at this moment");
-                });
+                .catch(err => { console.warn("Search failed:", err); showToast("Error", "Search unavailable at this moment"); });
         }
 
         function getFilteredMemories() {
@@ -1208,10 +990,11 @@
                 const color = categories[cat]?.color || '#999';
                 const size = 22 + ((m.intensity || 3) * 6); 
                 const emojiSize = size * 0.55;
-                const isMine = m.authorId === myUserId; // Check ownership
+                const isMine = m.authorId === myUserId;
+                // NEW: Visited check
+                const isVisited = visitedIds.includes(m.id);
 
-                // 添加 is-mine 类名如果是我自己的
-                const iconClass = `smell-marker ${isMine ? 'is-mine' : ''}`;
+                let iconClass = `smell-marker ${isMine ? 'is-mine' : ''} ${isVisited ? 'visited' : ''}`;
 
                 const icon = L.divIcon({
                     className: iconClass,
@@ -1226,19 +1009,16 @@
             markersLayer.clearLayers(); heatLayerGroup.clearLayers(); resonanceLayer.clearLayers(); 
             const filtered = getFilteredMemories();
             const batches = {};
-            const useCultureColor = activeFilters.cultures.length > 0; 
-
+            const useCultureColor = activeFilters.cultures.length > 0;
             filtered.forEach(m => { 
                 const cult = cultures.find(c=>c.id===m.culture);
                 const groupKey = useCultureColor ? m.culture : ((m.categories && m.categories[0])||'Fresh');
                 const color = useCultureColor ? (cult ? cult.color : '#999') : (categories[groupKey]?.color || '#999');
                 const radius = 15 + ((m.intensity||3) * 15); 
                 const batchKey = groupKey + '-' + (m.intensity||3);
-                
                 if(!batches[batchKey]) { batches[batchKey] = { pts: [], color: color, radius: radius }; }
                 batches[batchKey].pts.push([m.lat, m.lng, 1.0]); 
             });
-
             Object.values(batches).forEach(batch => {
                 L.heatLayer(batch.pts, { radius: batch.radius, blur: 20, max: 1.0, minOpacity: 0.85, gradient: { 0.0: batch.color, 1.0: batch.color } }).addTo(heatLayerGroup);
             });
@@ -1246,113 +1026,62 @@
 
         function startUploadProcess() {
             document.getElementById('upload-modal').classList.remove('hidden');
-            currentStep = 1; 
-            editingId = null; // 重置编辑ID，确保是新增
-            // 初始化上传数据，带上身份信息
-            uploadData = { categories: [], authorId: myUserId, authorName: myUserName }; 
+            currentStep = 1; editingId = null; 
+            uploadData = { categories: [], authorId: myUserId, authorName: myUserName };
             renderStep(1);
             showToast(getText('uploadToastTitle'), getText('uploadToastMsg'));
             document.getElementById('map').classList.add('cursor-pin');
-            // 关键逻辑：允许穿透点击
             document.getElementById('upload-modal').classList.add('pointer-events-none', 'bg-transparent', 'backdrop-blur-none');
             document.querySelector('#upload-modal > div').classList.add('hidden'); 
         }
         
-        // --- NEW: Start Edit Process ---
         function startEditProcess(memory) {
-            editingId = memory.id;
-            uploadData = { ...memory }; // 复制当前记忆数据
-            
+            editingId = memory.id; uploadData = { ...memory }; 
             document.getElementById('upload-modal').classList.remove('hidden');
             document.getElementById('upload-modal').classList.remove('pointer-events-none', 'bg-transparent', 'backdrop-blur-none');
             document.getElementById('upload-modal').classList.add('bg-slate-900/40', 'backdrop-blur-sm');
             document.querySelector('#upload-modal > div').classList.remove('hidden');
-            
-            // 直接跳到第2步，跳过地图点选（假设位置不改）
-            // 如果需要修改位置，可以考虑从第1步开始，但需要自动放置 Pin
-            currentStep = 1;
-            renderStep(1); 
-            
-            // 自动放置 Pin
+            currentStep = 1; renderStep(1); 
             if(tempMarker) map.removeLayer(tempMarker);
-            tempMarker = L.marker([memory.lat, memory.lng], { 
-                draggable: true, 
-                icon: L.divIcon({ 
-                    className: 'text-4xl fade-in-marker', 
-                    html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', 
-                    iconSize: [30, 40], iconAnchor: [15, 40] 
-                }) 
-            }).addTo(map);
-            
-            nextStep(); // 自动进入第二步
+            tempMarker = L.marker([memory.lat, memory.lng], { draggable: true, icon: L.divIcon({ className: 'text-4xl fade-in-marker', html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', iconSize: [30, 40], iconAnchor: [15, 40] }) }).addTo(map);
+            nextStep(); 
         }
 
         function handleMapClickForUpload(latlng) {
             const point = map.latLngToContainerPoint(latlng);
             const ink = document.createElement('div');
-            ink.className = 'ink-ripple';
-            ink.style.left = point.x + 'px';
-            ink.style.top = point.y + 'px';
+            ink.className = 'ink-ripple'; ink.style.left = point.x + 'px'; ink.style.top = point.y + 'px';
             document.getElementById('map-container').appendChild(ink);
             setTimeout(() => ink.remove(), 1600); 
 
             setTimeout(() => {
-                uploadData.lat = latlng.lat; 
-                uploadData.lng = latlng.lng;
-                
+                uploadData.lat = latlng.lat; uploadData.lng = latlng.lng;
                 if(tempMarker) map.removeLayer(tempMarker);
-                tempMarker = L.marker(latlng, { 
-                    draggable: true, 
-                    icon: L.divIcon({ 
-                        className: 'text-4xl fade-in-marker', 
-                        html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', 
-                        iconSize: [30, 40], iconAnchor: [15, 40] 
-                    }) 
-                }).addTo(map);
-
-                // 恢复模态框显示，并开启模糊背景
+                tempMarker = L.marker(latlng, { draggable: true, icon: L.divIcon({ className: 'text-4xl fade-in-marker', html: '<i class="fa-solid fa-location-dot text-red-600 drop-shadow-md"></i>', iconSize: [30, 40], iconAnchor: [15, 40] }) }).addTo(map);
                 document.getElementById('upload-modal').classList.remove('pointer-events-none', 'bg-transparent', 'backdrop-blur-none', 'hidden');
                 document.getElementById('upload-modal').classList.add('bg-slate-900/40', 'backdrop-blur-sm');
                 document.querySelector('#upload-modal > div').classList.remove('hidden');
                 document.getElementById('map').classList.remove('cursor-pin');
-                
                 nextStep(); 
             }, 800);
         }
 
-        // NEW: Helper function to compress image
         function compressImage(file, maxWidth, quality, callback) {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
+            const reader = new FileReader(); reader.readAsDataURL(file);
             reader.onload = event => {
-                const img = new Image();
-                img.src = event.target.result;
+                const img = new Image(); img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > maxWidth) {
-                        height *= maxWidth / width;
-                        width = maxWidth;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Compress to JPEG with specified quality
-                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                    callback(dataUrl);
+                    let width = img.width; let height = img.height;
+                    if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality); callback(dataUrl);
                 }
             }
         }
-
         function handleImageUpload(input) {
             if (input.files && input.files[0]) {
-                // Optimization: Compress image before setting it
-                // Using 800px width limit and 0.7 quality to ensure size is small enough for Firestore
                 compressImage(input.files[0], 800, 0.7, (compressedDataUrl) => {
                     uploadData.imageUrl = compressedDataUrl;
                     document.getElementById('img-preview-container').classList.remove('hidden');
@@ -1362,51 +1091,35 @@
             }
         }
 
-        // 修改：使用 oninput 触发，实时保存
         function updateUserName(newName) {
             const val = newName.trim();
-            if(val) {
-                myUserName = val;
-                localStorage.setItem('london_inhale_name', myUserName);
-            }
+            if(val) { myUserName = val; localStorage.setItem('london_inhale_name', myUserName); }
         }
 
         function updateProfileUI() {
             document.getElementById('profile-name').innerText = myUserName;
             document.getElementById('user-id-display').innerText = "ID: " + myUserId.substring(0, 8) + "...";
             if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                switchProfileTab('uploads');
+                // If modal is open, verify tab logic
+                const activeTab = document.getElementById('tab-bookmarks').classList.contains('border-amber-600') ? 'bookmarks' : 'uploads';
+                switchProfileTab(activeTab);
             }
         }
 
-        // 简单的翻译辅助函数 (使用免费API：Google GTX client / MyMemory)
+        // Translation
         async function tryTranslate(text, from, to) {
             if(!text) return "";
-            
-            // 1. 尝试 Google Translate (GTX - Unofficial but reliable for demos)
             try {
                 const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
                 const data = await res.json();
-                if (data && data[0] && data[0][0] && data[0][0][0]) {
-                    // Google returns multiple segments, join them
-                    return data[0].map(segment => segment[0]).join('');
-                }
-            } catch (e) {
-                console.warn("Google GTX translation failed, trying fallback...", e);
-            }
-
-            // 2. Fallback: MyMemory API
+                if (data && data[0] && data[0][0] && data[0][0][0]) return data[0].map(segment => segment[0]).join('');
+            } catch (e) { console.warn("Google GTX translation failed, trying fallback...", e); }
             try {
                 const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
                 const data = await res.json();
-                if(data && data.responseData && data.responseData.translatedText) {
-                    return data.responseData.translatedText;
-                }
-            } catch(e) {
-                console.warn("MyMemory translation failed", e);
-            }
-            
-            return text; // 如果都失败，返回原文
+                if(data && data.responseData && data.responseData.translatedText) return data.responseData.translatedText;
+            } catch(e) { console.warn("MyMemory translation failed", e); }
+            return text;
         }
 
         function renderStep(step) {
@@ -1414,113 +1127,71 @@
             const dots = document.getElementById('step-dots');
             const nextBtn = document.getElementById('next-btn');
             const prevBtn = document.getElementById('prev-btn');
-            
             document.getElementById('progress-bar').style.width = (step / 6 * 100) + '%';
-            dots.innerHTML = '';
-            for(let i=1; i<=6; i++) { dots.innerHTML += `<div class="w-2 h-2 rounded-full ${i <= step ? 'bg-amber-600' : 'bg-amber-200'}"></div>`; }
+            dots.innerHTML = ''; for(let i=1; i<=6; i++) { dots.innerHTML += `<div class="w-2 h-2 rounded-full ${i <= step ? 'bg-amber-600' : 'bg-amber-200'}"></div>`; }
             
-            nextBtn.disabled = false; 
+            nextBtn.disabled = false;
             nextBtn.innerHTML = `${getText('next')} <i class="fa-solid fa-arrow-right ml-2"></i>`; 
             
-            // 拦截 Next 点击以进行校验
             nextBtn.onclick = async () => {
-                // Validation for Step 2: Culture
-                if (step === 2) {
-                    if (!uploadData.culture) {
-                        showToast("Tip", getText('selectCulture'));
-                        return;
-                    }
-                }
-                
-                // Validation for Step 3: Name & Categories
+                if (step === 2) { if (!uploadData.culture) { showToast("Tip", getText('selectCulture')); return; } }
                 if (step === 3) {
-                    if (!uploadData.name || !uploadData.name.trim()) {
-                        showToast("Tip", getText('fillName'));
-                        return;
-                    }
-                    if (!uploadData.categories || uploadData.categories.length === 0) {
-                        showToast("Tip", getText('selectCategory'));
-                        return;
-                    }
+                    if (!uploadData.name || !uploadData.name.trim()) { showToast("Tip", getText('fillName')); return; }
+                    if (!uploadData.categories || uploadData.categories.length === 0) { showToast("Tip", getText('selectCategory')); return; }
                 }
+                if (step === 4) { if (!uploadData.emotion) { showToast("Tip", getText('selectEmotion')); return; } }
 
-                // Validation for Step 4: Emotion
-                if (step === 4) {
-                    if (!uploadData.emotion) {
-                        showToast("Tip", getText('selectEmotion'));
-                        return;
-                    }
-                }
-
-                // 如果在第3步（名字）或者第6步（故事），尝试自动填充 EN 字段
                 if (step === 3 && uploadData.name && !uploadData.nameEnTranslated) {
                      nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
                      const translated = await tryTranslate(uploadData.name, 'zh', 'en');
-                     if(translated && translated !== uploadData.name) {
-                         uploadData.nameEn = translated;
-                         uploadData.nameEnTranslated = true;
-                     } else {
-                         uploadData.nameEn = uploadData.name;
-                     }
-                     renderStep(step); // Reset button text
+                     if(translated && translated !== uploadData.name) { uploadData.nameEn = translated; uploadData.nameEnTranslated = true; } else { uploadData.nameEn = uploadData.name; }
+                     renderStep(step);
                 }
                 if (step === 6 && uploadData.story && !uploadData.storyEnTranslated) {
-                     // 提交前翻译
-                     const btnOriginal = nextBtn.innerHTML;
-                     nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
+                     const btnOriginal = nextBtn.innerHTML; nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
                      const translated = await tryTranslate(uploadData.story, 'zh', 'en');
-                     if(translated) uploadData.storyEn = translated;
-                     else uploadData.storyEn = uploadData.story;
+                     if(translated) uploadData.storyEn = translated; else uploadData.storyEn = uploadData.story;
                      uploadData.storyEnTranslated = true;
-                     submitUpload();
-                     return;
-                } else if (step === 6) {
-                    submitUpload();
-                    return;
-                }
+                     submitUpload(); return;
+                } else if (step === 6) { submitUpload(); return; }
                 
                 nextStep();
             };
 
             prevBtn.innerHTML = `<i class="fa-solid fa-arrow-left mr-2"></i> ${getText('prev')}`;
-            
             if (step === 1) { prevBtn.disabled = true; prevBtn.style.opacity = '0'; } 
             else { prevBtn.disabled = false; prevBtn.style.opacity = '1'; prevBtn.onclick = prevStep; }
 
             let html = '';
             switch(step) {
                 case 1: 
-                    html = `<div class="text-center"><i class="fa-solid fa-thumbtack text-6xl text-amber-300 mb-4 animate-bounce"></i><h2 class="text-2xl font-bold mb-2">${getText('step1Title')}</h2><p class="text-slate-500">${getText('step1Desc')}</p><p class="text-xs text-amber-600 mt-2 font-bold">${getText('waiting')}</p></div>`; 
-                    nextBtn.disabled = true; 
+                    html = `<div class="text-center"><i class="fa-solid fa-thumbtack text-6xl text-amber-300 mb-4 animate-bounce"></i><h2 class="text-2xl font-bold mb-2">${getText('step1Title')}</h2><p class="text-slate-500">${getText('step1Desc')}</p><p class="text-xs text-amber-600 mt-2 font-bold">${getText('waiting')}</p></div>`; nextBtn.disabled = true; 
                     break;
                 case 2: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step2Title')}</h2><div class="grid grid-cols-2 gap-3">${cultures.map(c => `<button onclick="selectOption('culture', '${c.id}', this)" class="step-opt px-4 py-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-left transition text-sm font-medium hand-drawn-btn ${uploadData.culture === c.id ? 'active' : ''}">${currentLang==='en'?c.en:c.label}</button>`).join('')}</div></div>`; 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step2Title')}</h2><div class="grid grid-cols-2 gap-3">${cultures.map(c => `<button onclick="selectOption('culture', '${c.id}', this)" class="step-opt px-4 py-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-left transition text-sm font-medium hand-drawn-btn ${uploadData.culture === c.id ? 'active' : ''}">${currentLang==='en'?c.en:c.label}</button>`).join('')}</div></div>`;
                     break;
                 case 3: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step3Title')}</h2><input type="text" id="smell-name" placeholder="${getText('namePlaceholder')}" class="w-full p-4 rounded-lg border border-amber-200 mb-4 focus:ring-2 focus:ring-amber-500 outline-none hand-drawn-container bg-white" oninput="uploadData.name = this.value;" value="${uploadData.name||''}"><p class="text-xs font-bold text-slate-400 uppercase mb-2">${getText('selectCat')}</p><div class="flex flex-wrap gap-2">${Object.entries(categories).map(([key, val]) => `<button onclick="toggleCategory('${key}', this)" class="step-opt-multi px-3 py-2 rounded-full border border-amber-200 text-xs flex items-center gap-2 hover:bg-amber-50 transition hand-drawn-btn ${uploadData.categories.includes(key)?'active':''}" data-val="${key}"><span class="w-3 h-3 rounded-full" style="background:${val.color}"></span>${currentLang==='en'?val.en:val.label}</button>`).join('')}</div></div>`; 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step3Title')}</h2><input type="text" id="smell-name" placeholder="${getText('namePlaceholder')}" class="w-full p-4 rounded-lg border border-amber-200 mb-4 focus:ring-2 focus:ring-amber-500 outline-none hand-drawn-container bg-white" oninput="uploadData.name = this.value;" value="${uploadData.name||''}"><p class="text-xs font-bold text-slate-400 uppercase mb-2">${getText('selectCat')}</p><div class="flex flex-wrap gap-2">${Object.entries(categories).map(([key, val]) => `<button onclick="toggleCategory('${key}', this)" class="step-opt-multi px-3 py-2 rounded-full border border-amber-200 text-xs flex items-center gap-2 hover:bg-amber-50 transition hand-drawn-btn ${uploadData.categories.includes(key)?'active':''}" data-val="${key}"><span class="w-3 h-3 rounded-full" style="background:${val.color}"></span>${currentLang==='en'?val.en:val.label}</button>`).join('')}</div></div>`;
                     break;
                 case 4: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step4Title')}</h2><div class="grid grid-cols-3 gap-3">${emotions.map(e => `<button onclick="selectOption('emotion', '${e.label}', this, '${e.emoji}', '${e.en}')" class="step-opt p-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 flex flex-col items-center justify-center gap-1 transition hand-drawn-btn ${uploadData.emotion === e.label ? 'active' : ''}"><span class="text-2xl">${e.emoji}</span><span class="text-xs">${currentLang==='en'?e.en:e.label}</span></button>`).join('')}</div></div>`; 
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step4Title')}</h2><div class="grid grid-cols-3 gap-3">${emotions.map(e => `<button onclick="selectOption('emotion', '${e.label}', this, '${e.emoji}', '${e.en}')" class="step-opt p-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 flex flex-col items-center justify-center gap-1 transition hand-drawn-btn ${uploadData.emotion === e.label ? 'active' : ''}"><span class="text-2xl">${e.emoji}</span><span class="text-xs">${currentLang==='en'?e.en:e.label}</span></button>`).join('')}</div></div>`;
                     break;
                 case 5: 
-                    html = `<div><h2 class="text-2xl font-bold mb-6">${getText('step5Title')}</h2><div class="mb-8"><label class="block text-sm font-bold text-slate-600 mb-2">${getText('intensity')}</label><input type="range" min="1" max="5" value="${uploadData.intensity||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.intensity = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('weak')}</span><span>3</span><span>5<br>${getText('strong')}</span></div></div><div><label class="block text-sm font-bold text-slate-600 mb-2">${getText('memory')}</label><input type="range" min="1" max="5" value="${uploadData.memoryLevel||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.memoryLevel = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('vague')}</span><span>3</span><span>5<br>${getText('deep')}</span></div></div></div>`; 
-                    if(!uploadData.intensity) uploadData.intensity = 3; 
-                    if(!uploadData.memoryLevel) uploadData.memoryLevel = 3; 
+                    html = `<div><h2 class="text-2xl font-bold mb-6">${getText('step5Title')}</h2><div class="mb-8"><label class="block text-sm font-bold text-slate-600 mb-2">${getText('intensity')}</label><input type="range" min="1" max="5" value="${uploadData.intensity||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.intensity = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('weak')}</span><span>3</span><span>5<br>${getText('strong')}</span></div></div><div><label class="block text-sm font-bold text-slate-600 mb-2">${getText('memory')}</label><input type="range" min="1" max="5" value="${uploadData.memoryLevel||3}" class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="uploadData.memoryLevel = parseInt(this.value)"><div class="flex justify-between text-xs text-slate-500 mt-2 font-mono"><span>1<br>${getText('vague')}</span><span>3</span><span>5<br>${getText('deep')}</span></div></div></div>`;
+                    if(!uploadData.intensity) uploadData.intensity = 3; if(!uploadData.memoryLevel) uploadData.memoryLevel = 3; 
                     break;
                 case 6: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step6Title')}</h2><div class="mb-4"><label class="block w-full border-2 border-dashed border-amber-300 rounded-xl p-4 flex flex-col items-center justify-center bg-amber-50/50 hover:bg-amber-100/50 cursor-pointer transition text-amber-700 h-32 relative"><input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(this)"><div id="upload-placeholder" class="text-center ${uploadData.imageUrl?'hidden':''}"><i class="fa-regular fa-image text-2xl mb-1"></i><span class="text-xs font-medium block">${getText('addPhoto')}</span></div><div id="img-preview-container" class="${uploadData.imageUrl?'':'hidden'} absolute inset-0 p-2"><img id="img-preview" src="${uploadData.imageUrl||''}" class="w-full h-full object-contain rounded-lg"></div></label></div><textarea class="w-full h-24 p-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none font-serif resize-none hand-drawn-container bg-white" placeholder="${getText('storyHolder')}" oninput="uploadData.story = this.value;">${uploadData.story||''}</textarea></div>`; 
-                    nextBtn.innerHTML = `${editingId ? getText('update') : getText('complete')} <i class="fa-solid fa-check ml-2"></i>`; 
-                    // onclick event is handled above
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step6Title')}</h2><div class="mb-4"><label class="block w-full border-2 border-dashed border-amber-300 rounded-xl p-4 flex flex-col items-center justify-center bg-amber-50/50 hover:bg-amber-100/50 cursor-pointer transition text-amber-700 h-32 relative"><input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(this)"><div id="upload-placeholder" class="text-center ${uploadData.imageUrl?'hidden':''}"><i class="fa-regular fa-image text-2xl mb-1"></i><span class="text-xs font-medium block">${getText('addPhoto')}</span></div><div id="img-preview-container" class="${uploadData.imageUrl?'':'hidden'} absolute inset-0 p-2"><img id="img-preview" src="${uploadData.imageUrl||''}" class="w-full h-full object-contain rounded-lg"></div></label></div><textarea class="w-full h-24 p-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none font-serif resize-none hand-drawn-container bg-white" placeholder="${getText('storyHolder')}" oninput="uploadData.story = this.value;">${uploadData.story||''}</textarea></div>`;
+                    nextBtn.innerHTML = `${editingId ? getText('update') : getText('complete')} <i class="fa-solid fa-check ml-2"></i>`;
                     break;
             }
             container.innerHTML = `<div class="fade-in w-full">${html}</div>`;
         }
 
         function selectOption(key, value, el, emoji=null, enValue=null) {
-            uploadData[key] = value; 
+            uploadData[key] = value;
             if(emoji) uploadData.emoji = emoji;
             if(key === 'emotion' && enValue) uploadData.emotionEn = enValue;
-            
             el.parentElement.querySelectorAll('.step-opt').forEach(b => b.classList.remove('active')); 
             el.classList.add('active');
         }
@@ -1536,113 +1207,100 @@
         function prevStep() { if(currentStep > 1) { currentStep--; renderStep(currentStep); } }
         
         function closeUploadModal() { 
-            document.getElementById('upload-modal').classList.add('hidden'); 
+            document.getElementById('upload-modal').classList.add('hidden');
             if(tempMarker) map.removeLayer(tempMarker); 
-            tempMarker = null; 
-            editingId = null; // 清除编辑状态
-            document.getElementById('map').classList.remove('cursor-pin'); 
+            tempMarker = null; editingId = null; 
+            document.getElementById('map').classList.remove('cursor-pin');
         }
 
         function submitUpload() {
             if(!uploadData.story) { uploadData.story = "（用户未填写故事）"; }
             if(!uploadData.name) { uploadData.name = "未命名气味"; }
-            if(!uploadData.nameEn) { uploadData.nameEn = uploadData.name; } // Fallback
-            if(!uploadData.storyEn) { uploadData.storyEn = uploadData.story; } // Fallback
+            if(!uploadData.nameEn) { uploadData.nameEn = uploadData.name; } 
+            if(!uploadData.storyEn) { uploadData.storyEn = uploadData.story; } 
 
             if(!uploadData.categories || uploadData.categories.length === 0) uploadData.categories = ['Fresh'];
-            
             const btn = document.getElementById('next-btn'); 
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${getText('processing')}`;
-            
             if (editingId) {
-                // 更新模式
-                const updatePayload = {
-                    ...uploadData,
-                    // 不更新 timestamp，保持原有创建时间
-                };
-                delete updatePayload.id; // 防止 ID 冲突
-
+                const updatePayload = { ...uploadData }; delete updatePayload.id; 
                 db.collection("memories").doc(editingId).update(updatePayload).then(() => {
-                    showToast("Success", "Memory updated.");
-                    closeUploadModal();
-                }).catch(err => {
-                    console.error(err);
-                    showToast("Error", "Update failed.");
-                    btn.innerHTML = getText('update');
-                });
+                    showToast("Success", "Memory updated."); closeUploadModal();
+                }).catch(err => { console.error(err); showToast("Error", "Update failed."); btn.innerHTML = getText('update'); });
             } else {
-                // 新增模式
-                const payload = {
-                    ...uploadData,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    date: new Date().toLocaleDateString(),
-                    comments: [] // 初始化空评论
-                };
-
+                const payload = { ...uploadData, timestamp: firebase.firestore.FieldValue.serverTimestamp(), date: new Date().toLocaleDateString(), comments: [] };
                 db.collection("memories").add(payload).then(() => {
-                    showToast(getText('successToast'), getText('successMsg')); 
-                    closeUploadModal();
-                }).catch(err => {
-                    console.error(err);
-                    showToast("Error", "Upload failed. Please try again.");
-                    btn.innerHTML = getText('complete');
-                });
+                    showToast(getText('successToast'), getText('successMsg')); closeUploadModal();
+                }).catch(err => { console.error(err); showToast("Error", "Upload failed. Please try again."); btn.innerHTML = getText('complete'); });
             }
         }
 
         function showDetail(memory) {
+            // NEW: Mark as visited (Local Storage only)
+            if(!visitedIds.includes(memory.id)) {
+                visitedIds.push(memory.id);
+                localStorage.setItem('li_visited', JSON.stringify(visitedIds));
+                renderMarkers(); // Refresh markers to apply fade style
+            }
+
             const panel = document.getElementById('detail-panel');
             const content = document.getElementById('detail-content');
             if (content) {
                 content.setAttribute('data-memory-id', memory.id);
                 renderDetailContent(memory);
+                updateBookmarkBtn(memory.id); // Update bookmark icon state
             }
             if (panel) panel.classList.remove('translate-x-full');
         }
 
-        // --- NEW: Comments Logic ---
+        // --- NEW: Bookmark Logic ---
+        function toggleCurrentBookmark() {
+            const content = document.getElementById('detail-content');
+            if (!content) return;
+            const id = content.getAttribute('data-memory-id');
+            if(!id) return;
+
+            const idx = bookmarkedIds.indexOf(id);
+            if(idx > -1) {
+                bookmarkedIds.splice(idx, 1);
+                showToast("Bookmark", getText('bookmarkRemoved'));
+            } else {
+                bookmarkedIds.push(id);
+                showToast("Bookmark", getText('bookmarkAdded'));
+            }
+            localStorage.setItem('li_bookmarks', JSON.stringify(bookmarkedIds));
+            updateBookmarkBtn(id);
+        }
+
+        function updateBookmarkBtn(id) {
+            const btn = document.getElementById('bookmark-btn');
+            const isBookmarked = bookmarkedIds.includes(id);
+            btn.innerHTML = isBookmarked ? '<i class="fa-solid fa-bookmark text-amber-600"></i>' : '<i class="fa-regular fa-bookmark"></i>';
+            if(isBookmarked) btn.classList.add('text-amber-600');
+            else btn.classList.remove('text-amber-600');
+        }
+
         function renderDetailContent(memory) {
             const content = document.getElementById('detail-content');
             if (!content) return;
             const cultureLabel = cultures.find(c => c.id === memory.culture)?.[currentLang === 'en' ? 'en' : 'label'] || memory.culture;
-            
-            // 翻译逻辑体现
             const name = currentLang === 'en' ? (memory.nameEn || memory.name) : memory.name;
             const story = currentLang === 'en' ? (memory.storyEn || memory.story) : memory.story;
             const emotion = currentLang === 'en' ? (memory.emotionEn || memory.emotion) : memory.emotion;
-            
             const catsHtml = (memory.categories || []).map(c => `<span class="px-2 py-1 rounded text-xs font-bold text-white mr-1" style="background-color: ${categories[c]?.color || '#999'}">${currentLang==='en' ? (categories[c]?.en || c) : (categories[c]?.label || c)}</span>`).join('');
-            
-            // 显示图片
             const imgHtml = memory.imageUrl ? `<div class="w-full h-48 bg-slate-100 rounded-xl mb-4 overflow-hidden"><img src="${memory.imageUrl}" class="w-full h-full object-cover"></div>` : '';
-
-            // 评论渲染 (Updated for Bilingual Support)
+            
             const commentsHtml = (memory.comments || []).map(c => {
                 let displayTxt = c.text;
                 let isTranslated = false;
-                
-                // 如果有翻译版本且当前语言与评论源语言不同，则显示翻译
-                if (c.sourceLang && c.translatedText) {
-                    if (currentLang !== c.sourceLang) {
-                        displayTxt = c.translatedText;
-                        isTranslated = true;
-                    }
+                if (c.sourceLang && c.translatedText && currentLang !== c.sourceLang) {
+                    displayTxt = c.translatedText;
+                    isTranslated = true;
                 }
-                
-                return `
-                <div class="comment-bubble">
-                    <div class="comment-meta">
-                        <span>${c.author || 'Anonymous'}</span>
-                        <span>${c.date || ''}</span>
-                    </div>
-                    <p>${displayTxt} ${isTranslated ? '<i class="fa-solid fa-language text-amber-400 ml-1 text-xs" title="Translated"></i>' : ''}</p>
-                </div>
-            `}).join('');
-
-            const commentsSection = (memory.comments && memory.comments.length > 0) 
-                ? `<div class="mt-6 border-t border-amber-100/50 pt-4"><h3 class="text-xs font-bold text-amber-900 mb-3 uppercase">${getText('comments')} (${memory.comments.length})</h3>${commentsHtml}</div>` 
-                : `<div class="mt-6 border-t border-amber-100/50 pt-4 text-center text-xs text-slate-300 italic">No comments yet.</div>`;
-
+                return `<div class="comment-bubble"><div class="comment-meta"><span>${c.author || 'Anonymous'}</span><span>${c.date || ''}</span></div><p>${displayTxt} ${isTranslated ? '<i class="fa-solid fa-language text-amber-400 ml-1 text-xs" title="Translated"></i>' : ''}</p></div>`;
+            }).join('');
+            const commentsSection = (memory.comments && memory.comments.length > 0) ? `<div class="mt-6 border-t border-amber-100/50 pt-4"><h3 class="text-xs font-bold text-amber-900 mb-3 uppercase">${getText('comments')} (${memory.comments.length})</h3>${commentsHtml}</div>` : `<div class="mt-6 border-t border-amber-100/50 pt-4 text-center text-xs text-slate-300 italic">No comments yet.</div>`;
+            
             content.innerHTML = `<div class="fade-in">
                 ${imgHtml}
                 <div class="flex justify-between items-start mb-2"><div class="flex flex-wrap items-center gap-2"><span class="px-2 py-1 bg-amber-100 rounded text-xs font-bold text-amber-800 uppercase">${cultureLabel}</span>${catsHtml}</div></div>
@@ -1656,10 +1314,8 @@
                 <div class="mb-6"><p class="text-xs text-slate-400 uppercase mb-2">Story</p><p class="text-slate-600 leading-relaxed italic font-serif text-lg">"${story}"</p></div>
                 <div class="text-xs text-right text-slate-300">${memory.date || ''}</div>
                 ${commentsSection}
-                <div style="height: 60px;"></div> <!-- Space for input -->
+                <div style="height: 60px;"></div>
             </div>`;
-            
-            // 更新按钮文本
             document.getElementById('send-comment-btn').innerText = getText('send');
         }
 
@@ -1668,49 +1324,26 @@
             const text = input.value.trim();
             const content = document.getElementById('detail-content');
             const memId = content ? content.getAttribute('data-memory-id') : null;
-
             if (!text || !memId) return;
 
             const btn = document.getElementById('send-comment-btn');
             const originalText = btn.innerText;
-            
-            // 状态：翻译中...
             btn.innerHTML = `<i class="fa-solid fa-language fa-spin"></i>`;
             btn.disabled = true;
 
-            // 1. 确定源语言和目标语言
-            const sourceLang = currentLang; // 假设用户输入的语言是当前界面语言
+            const sourceLang = currentLang;
             const targetLang = currentLang === 'zh' ? 'en' : 'zh';
-
-            // 2. 尝试翻译
             let translated = "";
-            try {
-                translated = await tryTranslate(text, sourceLang, targetLang);
-            } catch (e) {
-                console.warn("Comment translation failed", e);
-            }
+            try { translated = await tryTranslate(text, sourceLang, targetLang); } catch (e) { console.warn("Comment translation failed", e); }
 
             const newComment = {
-                text: text, // 原文
-                translatedText: translated || text, // 译文（如果失败则存原文）
-                sourceLang: sourceLang, // 标记源语言
-                author: myUserName || 'Anonymous',
-                date: new Date().toLocaleDateString(),
-                timestamp: Date.now()
+                text: text, translatedText: translated || text, sourceLang: sourceLang,
+                author: myUserName || 'Anonymous', date: new Date().toLocaleDateString(), timestamp: Date.now()
             };
-
             db.collection('memories').doc(memId).update({
                 comments: firebase.firestore.FieldValue.arrayUnion(newComment)
-            }).then(() => {
-                input.value = '';
-                // 实时监听会自动刷新UI
-            }).catch(err => {
-                console.error(err);
-                showToast("Error", "Failed to send comment.");
-            }).finally(() => {
-                btn.innerText = originalText; // 恢复按钮文本
-                btn.disabled = false;
-            });
+            }).then(() => { input.value = ''; }).catch(err => { console.error(err); showToast("Error", "Failed to send comment."); })
+              .finally(() => { btn.innerText = originalText; btn.disabled = false; });
         }
 
         function closeDetailPanel() { 
@@ -1721,29 +1354,16 @@
 
         function showToast(title, msg) { const t = document.getElementById('toast'); document.getElementById('toast-title').textContent = title; document.getElementById('toast-msg').textContent = msg; t.classList.remove('translate-x-full'); setTimeout(() => t.classList.add('translate-x-full'), 5000); }
         
-        // --- 核心修改：每日气味逻辑 ---
-        // 使用日期的哈希值来决定显示哪条记忆，确保同一天显示同一条
         function renderDailyScent() { 
-            if(memories.length === 0) {
-                document.getElementById('daily-scent-text').innerHTML = "Waiting for data...";
-                return;
-            }
-            
-            // 1. 获取今日日期字符串
-            const today = new Date().toDateString(); 
-            // 2. 将字符串转为数字哈希
-            let hash = 0;
-            for (let i = 0; i < today.length; i++) {
-                hash = today.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            // 3. 取模得到索引
+            if(memories.length === 0) { document.getElementById('daily-scent-text').innerHTML = "Waiting for data..."; return; }
+            const today = new Date().toDateString();
+            let hash = 0; for (let i = 0; i < today.length; i++) { hash = today.charCodeAt(i) + ((hash << 5) - hash); }
             const index = Math.abs(hash) % memories.length;
             const m = memories[index]; 
-            
             const name = currentLang === 'en' ? (m.nameEn || m.name) : m.name;
             const emo = currentLang === 'en' ? (m.emotionEn || m.emotion) : m.emotion;
-            document.getElementById('daily-scent-text').innerHTML = `<span class="font-bold">"${name}"</span> <br> <span class="text-xs text-slate-500">${emo}</span>`; 
-            document.getElementById('daily-scent').onclick = () => { map.flyTo([m.lat, m.lng], 16); setTimeout(() => showDetail(m), 1500); }; 
+            document.getElementById('daily-scent-text').innerHTML = `<span class="font-bold">"${name}"</span> <br> <span class="text-xs text-slate-500">${emo}</span>`;
+            document.getElementById('daily-scent').onclick = () => { map.flyTo([m.lat, m.lng], 16); setTimeout(() => showDetail(m), 1500); };
         }
         
         function toggleHeatmap() { isHeatmapMode = !isHeatmapMode; renderMarkers(); }
@@ -1752,7 +1372,6 @@
             pathLayer.clearLayers();
             const menu = document.getElementById('route-menu');
             let points = memories; 
-            // 简单筛选逻辑
             if(routeCriteria.emotions.length > 0 || routeCriteria.cultures.length > 0 || routeCriteria.categories.length > 0) {
                  const subset = memories.filter(m => {
                      const e = routeCriteria.emotions.includes(m.emotion) || routeCriteria.emotions.includes(m.emotionEn);
@@ -1766,23 +1385,15 @@
                  });
                  if(subset.length > 0) points = subset;
             }
-
-            if(points.length < 2) { 
-                showToast(getText('routeTitle'), getText('noRoute')); 
-            } else {
-                 showToast(getText('routeTitle'), getText('routeFound'));
-            }
-
+            if(points.length < 2) { showToast(getText('routeTitle'), getText('noRoute')); } else { showToast(getText('routeTitle'), getText('routeFound')); }
             const routePoints = [];
             if (points.length > 0) {
                 const maxPoints = Math.min(6, points.length);
                 let current = points[Math.floor(Math.random()*points.length)]; 
                 const visited = new Set([current.id]);
                 routePoints.push(current);
-
                 for(let i=0; i<maxPoints-1; i++) {
-                    let nearest = null;
-                    let minDst = Infinity;
+                    let nearest = null; let minDst = Infinity;
                     points.forEach(p => {
                         if(!visited.has(p.id)) {
                             const dst = Math.sqrt(Math.pow(current.lat - p.lat, 2) + Math.pow(current.lng - p.lng, 2));
@@ -1792,7 +1403,6 @@
                     if(nearest) { visited.add(nearest.id); routePoints.push(nearest); current = nearest; }
                 }
             }
-            
             if(routePoints.length > 1) {
                 const latlngs = routePoints.map(m => [m.lat, m.lng]);
                 L.polyline(latlngs, { color: '#D4B996', weight: 5, opacity: 0.9, dashArray: '1, 10', lineCap: 'round', className: 'fade-in' }).addTo(pathLayer);
@@ -1801,12 +1411,20 @@
             }
         } 
         
-        function toggleRouteMenu() {
-            const menu = document.getElementById('route-menu');
-            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
-        }
+        function toggleRouteMenu() { const menu = document.getElementById('route-menu'); menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex'; }
         
-        function toggleProfile() { document.getElementById('profile-modal').classList.remove('hidden'); switchProfileTab('uploads'); }
+        function toggleProfile() { 
+            // Reset Notification count on open
+            let currentTotalComments = 0;
+            memories.filter(m => m.authorId === myUserId).forEach(m => { if(m.comments) currentTotalComments += m.comments.length; });
+            lastKnownCommentCount = currentTotalComments;
+            localStorage.setItem('li_last_comment_count', lastKnownCommentCount);
+            document.getElementById('profile-notify-dot').classList.remove('active');
+
+            document.getElementById('profile-modal').classList.remove('hidden');
+            switchProfileTab('uploads'); 
+        }
+
         function toggleHeader() {
             const hb = document.getElementById('header-box');
             hb.classList.toggle('header-collapsed');
@@ -1814,80 +1432,94 @@
         }
         function initUI() { document.body.classList.add('fade-in'); }
 
-        // --- NEW: Delete Logic ---
         let memoryToDeleteId = null;
-
         function confirmDelete(id) {
-            memoryToDeleteId = id;
-            document.getElementById('confirm-modal').classList.remove('hidden');
+            memoryToDeleteId = id; document.getElementById('confirm-modal').classList.remove('hidden');
             document.getElementById('confirm-delete-btn').onclick = () => performDelete();
         }
 
         function performDelete() {
             if (!memoryToDeleteId) return;
-            const btn = document.getElementById('confirm-delete-btn');
-            const originalText = btn.innerText;
+            const btn = document.getElementById('confirm-delete-btn'); const originalText = btn.innerText;
             btn.innerText = "...";
-            
-            // 使用 helper 获取集合
-            // 核心修改：直接 collection("memories")
             db.collection("memories").doc(memoryToDeleteId).delete().then(() => {
-                showToast("Success", "Memory deleted.");
-                document.getElementById('confirm-modal').classList.add('hidden');
-            }).catch(err => {
-                console.error("Error removing document: ", err);
-                showToast("Error", "Could not delete.");
-            }).finally(() => {
-                btn.innerText = originalText;
-                memoryToDeleteId = null;
-            });
+                showToast("Success", "Memory deleted."); document.getElementById('confirm-modal').classList.add('hidden');
+            }).catch(err => { console.error("Error removing document: ", err); showToast("Error", "Could not delete."); })
+              .finally(() => { btn.innerText = originalText; memoryToDeleteId = null; });
         }
 
+        // --- NEW: Switch Profile Tab (Uploads vs Bookmarks) ---
         function switchProfileTab(tab) {
             const content = document.getElementById('profile-content');
             if (!content) return;
-            // 简化版只做 Uploads 显示
-            content.innerHTML = '';
-            const myMems = memories.filter(m => m.authorId === myUserId);
-            if(myMems.length === 0) {
-                content.innerHTML = '<p class="text-center text-slate-400 mt-10">No uploads yet.</p>';
+            
+            // Tab styling
+            const t1 = document.getElementById('tab-uploads');
+            const t2 = document.getElementById('tab-bookmarks');
+            if (tab === 'uploads') {
+                t1.className = 'flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50';
+                t2.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent';
             } else {
-                myMems.forEach(m => {
+                t2.className = 'flex-1 py-3 text-sm font-bold text-amber-800 border-b-2 border-amber-600 bg-amber-100/50';
+                t1.className = 'flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent';
+            }
+
+            content.innerHTML = '';
+            
+            let listToRender = [];
+            if(tab === 'uploads') {
+                listToRender = memories.filter(m => m.authorId === myUserId);
+            } else {
+                listToRender = memories.filter(m => bookmarkedIds.includes(m.id));
+            }
+
+            if(listToRender.length === 0) {
+                content.innerHTML = `<p class="text-center text-slate-400 mt-10">No ${tab} yet.</p>`;
+            } else {
+                listToRender.forEach(m => {
                     const div = document.createElement('div'); div.className = 'bg-white p-3 rounded-lg border border-amber-100 mb-3 cursor-pointer flex justify-between items-center group relative';
                     
                     const textDiv = document.createElement('div');
                     const n = currentLang==='en'?(m.nameEn||m.name):m.name;
                     textDiv.innerHTML = `<h3 class="font-bold text-slate-700 text-sm">${n}</h3><p class="text-xs text-slate-400">${m.date}</p>`;
                     
-                    // 按钮容器
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'flex gap-1 opacity-0 group-hover:opacity-100 transition';
 
-                    // 编辑按钮
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'text-slate-300 hover:text-blue-500 p-2';
-                    editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
-                    editBtn.onclick = (e) => {
-                        e.stopPropagation(); 
-                        document.getElementById('profile-modal').classList.add('hidden');
-                        startEditProcess(m);
-                    };
+                    if(tab === 'uploads') {
+                        // Edit & Delete for Uploads
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'text-slate-300 hover:text-blue-500 p-2';
+                        editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+                        editBtn.onclick = (e) => { e.stopPropagation(); document.getElementById('profile-modal').classList.add('hidden'); startEditProcess(m); };
 
-                    // 删除按钮 (Updated)
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'text-slate-300 hover:text-red-500 p-2';
-                    delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-                    delBtn.onclick = (e) => {
-                        e.stopPropagation(); // 防止触发div点击查看详情
-                        confirmDelete(m.id);
-                    };
-
-                    btnGroup.appendChild(editBtn);
-                    btnGroup.appendChild(delBtn);
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'text-slate-300 hover:text-red-500 p-2';
+                        delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                        delBtn.onclick = (e) => { e.stopPropagation(); confirmDelete(m.id); };
+                        
+                        btnGroup.appendChild(editBtn);
+                        btnGroup.appendChild(delBtn);
+                    } else {
+                        // Remove bookmark button for Bookmarks tab
+                        const rmBtn = document.createElement('button');
+                        rmBtn.className = 'text-slate-300 hover:text-red-500 p-2';
+                        rmBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i>'; // Solid icon means "remove" in this context
+                        rmBtn.title = "Remove Bookmark";
+                        rmBtn.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            const idx = bookmarkedIds.indexOf(m.id);
+                            if(idx > -1) {
+                                bookmarkedIds.splice(idx, 1);
+                                localStorage.setItem('li_bookmarks', JSON.stringify(bookmarkedIds));
+                                switchProfileTab('bookmarks'); // Re-render
+                            }
+                        };
+                        btnGroup.appendChild(rmBtn);
+                    }
 
                     div.appendChild(textDiv);
                     div.appendChild(btnGroup);
-
                     div.onclick = () => { document.getElementById('profile-modal').classList.add('hidden'); map.setView([m.lat, m.lng], 16); showDetail(m); };
                     content.appendChild(div);
                 });
