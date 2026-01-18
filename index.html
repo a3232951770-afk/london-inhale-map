@@ -15,12 +15,13 @@
     <!-- 引入 Leaflet Heatmap 插件 -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
-    <!-- 引入 Chart.js (修复: 使用 UMD 版本以确保全局变量 Chart 被正确定义) -->
+    <!-- 引入 Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <!-- 引入 Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <!-- 引入字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
@@ -109,6 +110,32 @@
         .smell-marker.visited:hover {
             opacity: 1;
             filter: grayscale(0);
+        }
+
+        /* --- 共鸣闪烁特效 --- */
+        .smell-marker.resonance-flash {
+            z-index: 2000 !important;
+        }
+        .smell-marker.resonance-flash .pulse-ring {
+            border-color: #ec4899 !important; /* Pink-500 */
+            border-width: 4px;
+            animation: pulsate-resonance 1.5s ease-out infinite !important;
+            opacity: 1;
+        }
+        .smell-marker.resonance-flash .custom-icon-inner {
+            border: 2px solid #fbcfe8; /* Pink-200 */
+            background-color: #fce7f3 !important; /* Pink-100 */
+            animation: bounce-gentle 1.5s infinite;
+        }
+
+        @keyframes pulsate-resonance {
+            0% { transform: scale(0.8); opacity: 0.8; border-color: #ec4899; }
+            50% { opacity: 0.5; }
+            100% { transform: scale(3.5); opacity: 0.0; border-color: #f472b6; }
+        }
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
 
         .pulse-ring {
@@ -266,12 +293,38 @@
             display: none; /* Hidden by default */
         }
         .notification-dot.active { display: block; }
+
+        /* --- UPDATED: Resonance Modal Position (Force Fixed at Very Top) --- */
+        #resonance-modal {
+            position: fixed;
+            /* Force horizontal centering relative to viewport */
+            left: 50%;
+            transform: translateX(-50%);
+            
+            /* Vertical position: Fixed at Top (High up, between header and buttons) */
+            top: 1rem; 
+            
+            z-index: 4000;
+            
+            transition: opacity 0.5s ease;
+            opacity: 0;
+            pointer-events: none; /* Hidden state */
+        }
+
+        /* Active Display State */
+        #resonance-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+            /* Ensure it stays at top */
+            top: 1rem; 
+        }
     </style>
 </head>
 <body class="text-slate-700">
 
     <script>
-        // Firebase Config
+        // --- Firebase Configuration ---
+        // 直接使用你的 london-inhale 配置
         const firebaseConfig = {
           apiKey: "AIzaSyBGp-AjGwAaKp4bCoqDoYZ51BCof4mCoo0",
           authDomain: "london-inhale.firebaseapp.com",
@@ -281,8 +334,10 @@
           appId: "1:94851508636:web:7d9d430f8dadef5c498059",
           measurementId: "G-CBPE8MQT0F"
         };
+
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
     </script>
 
     <!-- Intro -->
@@ -301,7 +356,10 @@
                 <p class="text-xl text-slate-600 mb-6 font-serif leading-relaxed" id="intro-desc">
                     Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.
                 </p>
-                <p class="text-sm text-amber-700 font-bold mb-6 italic" id="intro-status">Loading memories...</p>
+                <!-- 修改部分：诗意加载语 -->
+                <p class="text-sm text-amber-700 font-bold mb-6 italic" id="intro-status">
+                    Awakening the city's invisible memories...
+                </p>
                 <div class="text-amber-600 mb-8" id="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
             </div>
 
@@ -420,6 +478,33 @@
         </div>
     </div>
 
+    <!-- Resonance Alert Modal (UPDATED: Fixed at Top Center) -->
+    <div id="resonance-modal" class="hidden">
+         <div class="hand-drawn-container p-4 max-w-sm bg-white/95 text-center shadow-2xl border-amber-300 relative flex flex-col items-center gap-2">
+            <!-- Header -->
+            <div class="flex items-center gap-2 text-amber-900 mb-1">
+                <i class="fa-regular fa-bell text-xl animate-bounce"></i>
+                <h3 class="font-bold font-serif text-sm" id="resonance-title">Echoes Found</h3>
+            </div>
+            
+            <!-- Message -->
+            <p class="text-xs text-slate-600 italic font-serif leading-relaxed" id="resonance-msg">
+                Someone shares a similar memory...
+            </p>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-2 mt-2 w-full justify-center">
+                <button onclick="stopResonanceFlashing()" class="px-3 py-1.5 rounded-full border border-slate-300 text-slate-500 hover:bg-slate-100 text-xs font-bold transition flex-1" id="res-stop-btn">
+                    Stop
+                </button>
+                <button onclick="jumpToNextResonance()" class="px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 text-xs font-bold shadow-md transition flex-1 flex items-center justify-center gap-1" id="res-next-btn">
+                    <span>Visit</span> <i class="fa-solid fa-location-arrow"></i>
+                </button>
+            </div>
+            <p class="text-[9px] text-amber-700/60 mt-1" id="res-hint">Click marker to read & dismiss</p>
+         </div>
+    </div>
+
     <!-- Detail Panel -->
     <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col">
         <!-- Bookmark Button -->
@@ -515,9 +600,9 @@
         </div>
     </div>
 
-    <!-- Confirm Delete Modal -->
-    <div id="confirm-modal" class="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="hand-drawn-container bg-white p-6 max-w-xs text-center">
+    <!-- Confirm Delete Modal (Fix: High Z-Index) -->
+    <div id="confirm-modal" class="fixed inset-0 z-[6000] bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="hand-drawn-container bg-white p-6 max-w-xs text-center shadow-2xl scale-100 transition-transform">
             <h3 class="font-bold text-lg mb-2 text-slate-800">Delete Memory?</h3>
             <p class="text-sm text-slate-600 mb-6">This action cannot be undone.</p>
             <div class="flex gap-2 justify-center">
@@ -527,7 +612,7 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed top-24 right-4 hand-drawn-container px-4 py-3 shadow-xl translate-x-full transition-transform duration-300 z-[3000] flex items-center gap-3 max-w-sm bg-amber-100/90 border-amber-300">
+    <div id="toast" class="fixed top-24 right-4 hand-drawn-container px-4 py-3 shadow-xl translate-x-full transition-transform duration-300 z-[7000] flex items-center gap-3 max-w-sm bg-amber-100/90 border-amber-300">
         <i class="fa-solid fa-bell text-amber-500"></i><div class="text-sm"><p class="font-bold text-amber-800" id="toast-title">Hint</p><p class="opacity-80 text-amber-700" id="toast-msg">...</p></div>
     </div>
 
@@ -552,7 +637,9 @@
                 searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中...",
                 fillName: "请填写气味名称", selectCategory: "请选择气味类别", selectCulture: "请选择文化背景", selectEmotion: "请选择一种情绪",
                 bookmarkAdded: "已收藏", bookmarkRemoved: "已取消收藏",
-                commentedOn: "评论了你的:", reply: "点击回复"
+                commentedOn: "评论了你的:", reply: "点击回复",
+                resTitle: "气味回响", resMsg: "在文字的缝隙中，找到了 {count} 个相似的记忆碎片……", 
+                resStop: "结束", resVisit: "去看看", resHint: "点击闪烁点阅读并消除"
             },
             en: {
                 introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", startBtn: "Start Exploring", langBtn: "切换到中文",
@@ -572,7 +659,9 @@
                 searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating...",
                 fillName: "Please enter scent name", selectCategory: "Please select a category", selectCulture: "Please select cultural background", selectEmotion: "Please select an emotion",
                 bookmarkAdded: "Saved to Bookmarks", bookmarkRemoved: "Removed from Bookmarks",
-                commentedOn: "Commented on:", reply: "Click to reply"
+                commentedOn: "Commented on:", reply: "Click to reply",
+                resTitle: "Echoes in the Air", resMsg: "Within the words, {count} similar memory fragments were found...", 
+                resStop: "Stop", resVisit: "Visit", resHint: "Click marker to read & dismiss"
             }
         };
 
@@ -589,7 +678,7 @@
             { id: 'Caribbean', label: '加勒比', en: 'Caribbean', color: '#eab308' }, 
             { id: 'Middle Eastern', label: '中东', en: 'Middle Eastern', color: '#ec4899' }, 
             { id: 'Mixed', label: '混合', en: 'Mixed', color: '#64748b' }, 
-            { id: 'Other', label: '其他', en: 'Other', color: '#94a3b8' } 
+            { id: 'Other', label: '其他', en: '其他', color: '#94a3b8' } 
         ];
 
         let memories = [];
@@ -601,26 +690,50 @@
         let isDataLoaded = false;
         let editingId = null;
 
-        // --- NEW: Local Persistence (User Identity & State) ---
-        let myUserId = localStorage.getItem('london_inhale_uid');
-        if (!myUserId) {
-            myUserId = 'user-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
-            localStorage.setItem('london_inhale_uid', myUserId);
-        }
+        // Resonance Variables
+        let flashingIds = [];
+        let resonanceList = []; // Array of objects {id, lat, lng}
+        let currentResonanceIndex = -1;
+
+        // --- Local Persistence (User Identity & State) ---
+        let myUserId = null; 
         let myUserName = localStorage.getItem('london_inhale_name') || "Guest User";
-        
-        // Load Bookmarks & Visited from LocalStorage
         let bookmarkedIds = JSON.parse(localStorage.getItem('li_bookmarks') || '[]');
         let visitedIds = JSON.parse(localStorage.getItem('li_visited') || '[]');
-        
-        // Notification Logic
         let lastKnownCommentCount = parseInt(localStorage.getItem('li_last_comment_count') || '0');
 
         window.onload = function() {
             initMap();
-            setupRealtimeListener(); 
-            updateProfileUI();
-            safeUpdateTexts(); 
+            
+            // 登录逻辑：现在直接尝试匿名登录
+            auth.signInAnonymously()
+                .then((userCredential) => {
+                    console.log("Signed in anonymously as:", userCredential.user.uid);
+                    myUserId = userCredential.user.uid;
+                    // We can save it, but the app logic now relies on the Auth object primarily
+                    localStorage.setItem('london_inhale_uid', myUserId);
+                    
+                    // 登录成功后再加载数据
+                    setupRealtimeListener(); 
+                    updateProfileUI();
+                    safeUpdateTexts();
+                })
+                .catch((error) => {
+                    console.error("Auth failed:", error);
+                    showToast("Error", "Authentication failed. " + error.message);
+                    // 即使失败也尝试加载数据（只读模式）
+                    setupRealtimeListener();
+                });
+
+            // 监听 Auth 状态变化
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    myUserId = user.uid;
+                    localStorage.setItem('london_inhale_uid', myUserId);
+                    // Refresh UI to show delete buttons if we own anything
+                    if(memories.length > 0) renderMarkers();
+                }
+            });
         };
 
         // --- Firebase Core ---
@@ -638,7 +751,9 @@
                 const startBtn = document.getElementById('start-btn');
                 const statusEl = document.getElementById('intro-status');
                 
-                if(statusEl) statusEl.innerHTML = "Loading memories...";
+                // Force poetic text, prevent overwriting with generic text
+                if(statusEl) statusEl.innerHTML = "Awakening the city's invisible memories..."; 
+                
                 if(loadingContainer) loadingContainer.style.display = 'none';
                 if(startBtn) startBtn.classList.remove('hidden');
                 if(statusEl) statusEl.style.display = 'none';
@@ -672,10 +787,11 @@
                 }
             }, (error) => {
                 console.error("Error getting memories:", error);
+                document.getElementById('intro-status').innerText = "Connection issue: " + error.code;
             });
         }
 
-        // --- NEW: Notification Check ---
+        // --- Notification Check ---
         function checkNotifications() {
             // Count total comments on MY posts
             let currentTotalComments = 0;
@@ -839,6 +955,14 @@
             safeSetText('tab-bookmarks', getText('myBookmarks'));
             safeSetText('tab-messages', getText('myMessages'));
 
+            safeSetText('resonance-title', getText('resTitle'));
+            safeSetText('res-stop-btn', getText('resStop'));
+            safeSetHTML('res-next-btn', `<span>${getText('resVisit')}</span> <i class="fa-solid fa-location-arrow"></i>`);
+            safeSetText('res-hint', getText('resHint'));
+            
+            // Only update message text if list exists, otherwise it clears dynamic count
+            if(resonanceList.length === 0) safeSetHTML('resonance-msg', getText('resMsg').replace('{count}', '...'));
+
             document.getElementById('location-search-input').placeholder = getText('searchPlaceholder');
             renderFilters();
             renderRouteMenu();
@@ -937,7 +1061,21 @@
 
         function initMap() {
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.505, -0.09], 13);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, opacity: 0.9 }).addTo(map);
+            
+            // 1. Base map NO LABELS (Always visible)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { 
+                maxZoom: 19, 
+                opacity: 0.9 
+            }).addTo(map);
+
+            // 2. Labels ONLY (Visible only at zoom >= 5, hiding country names at low zoom)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', { 
+                minZoom: 5, 
+                maxZoom: 19, 
+                opacity: 0.8,
+                pane: 'shadowPane' 
+            }).addTo(map);
+
             L.control.zoom({ position: 'bottomright' }).addTo(map);
             heatLayerGroup.addTo(map); markersLayer.addTo(map); pathLayer.addTo(map); resonanceLayer.addTo(map); searchLayer.addTo(map);
             
@@ -1002,11 +1140,16 @@
                 const color = categories[cat]?.color || '#999';
                 const size = 22 + ((m.intensity || 3) * 6); 
                 const emojiSize = size * 0.55;
-                const isMine = m.authorId === myUserId;
-                // NEW: Visited check
+                
+                // IMPORTANT: Only show "mine" if Auth ID is ready and matches
+                const isMine = myUserId && m.authorId === myUserId;
+                
+                // Visited check
                 const isVisited = visitedIds.includes(m.id);
+                // Resonance Check
+                const isFlashing = flashingIds.includes(m.id);
 
-                let iconClass = `smell-marker ${isMine ? 'is-mine' : ''} ${isVisited ? 'visited' : ''}`;
+                let iconClass = `smell-marker ${isMine ? 'is-mine' : ''} ${isVisited ? 'visited' : ''} ${isFlashing ? 'resonance-flash' : ''}`;
 
                 const icon = L.divIcon({
                     className: iconClass,
@@ -1110,7 +1253,7 @@
 
         function updateProfileUI() {
             document.getElementById('profile-name').innerText = myUserName;
-            document.getElementById('user-id-display').innerText = "ID: " + myUserId.substring(0, 8) + "...";
+            document.getElementById('user-id-display').innerText = "ID: " + (myUserId ? (myUserId.substring(0, 8) + "...") : "Connecting...");
             if(!document.getElementById('profile-modal').classList.contains('hidden')) {
                 // Check active tab
                 const t1 = document.getElementById('tab-uploads');
@@ -1118,8 +1261,8 @@
                 const t3 = document.getElementById('tab-messages');
                 
                 let activeTab = 'uploads';
-                if(t2 && t2.classList.contains('border-amber-600')) activeTab = 'bookmarks';
-                if(t3 && t3.classList.contains('border-amber-600')) activeTab = 'messages';
+                if(t2.classList.contains('border-amber-600')) activeTab = 'bookmarks';
+                if(t3.classList.contains('border-amber-600')) activeTab = 'messages';
                 
                 switchProfileTab(activeTab);
             }
@@ -1232,7 +1375,115 @@
             document.getElementById('map').classList.remove('cursor-pin');
         }
 
+        // --- UPDATED: Keyword Extraction & Union Matching ---
+        function checkForResonance(newMem) {
+            // Enhanced Stopwords List (Chinese & English)
+            const stopWords = new Set([
+                'the', 'a', 'an', 'in', 'on', 'of', 'and', 'with', 'to', 'is', 'it', 'for', 'my', 'i', 'me', 'we', 'our',
+                'smell', 'scent', 'feels', 'like', 'but', 'or', 'so', 'at', 'by', 'from', 'up', 'out', 'as',
+                '味道', '气味', '感觉', '觉得', '好', '很', '的', '了', '是', '在', '我', '有', '和', '就', '不', '人', 
+                '都', '一', '一个', '上', '也', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '自己', '这', 
+                '那', '个', '只', '又', '因为', '所以', '虽然', '但是', '有点', '一些', '就像', '闻起来'
+            ]);
+            
+            // Helper to tokenize and filter text
+            const getKeywords = (text) => {
+                if(!text) return [];
+                // Split by spaces, punctuation, symbols (covers both CN and EN loosely)
+                // Using a regex that matches anything NOT a word character or Chinese character
+                return text.toLowerCase()
+                    .split(/[^a-zA-Z0-9\u4e00-\u9fa5]+/) // Split by non-alphanumeric/non-Chinese
+                    .filter(w => w.length > 0 && !stopWords.has(w)); // Filter empty strings and stopwords
+            };
+
+            const nameKeywords = getKeywords(newMem.name);
+            const storyKeywords = getKeywords(newMem.story);
+            
+            // Combine all unique keywords from the new memory
+            const sourceKeywords = [...new Set([...nameKeywords, ...storyKeywords])];
+            
+            console.log("Extracted Keywords:", sourceKeywords);
+
+            if (sourceKeywords.length === 0) return; // No keywords to match
+
+            const similar = memories.filter(m => {
+                if(m.id === newMem.id) return false;
+                
+                // Get target keywords
+                const targetText = ((m.name || "") + " " + (m.story || "")).toLowerCase();
+                
+                // UNION CHECK: Does target text contain ANY of the source keywords?
+                // Using 'includes' for a slightly loose match (e.g. "rain" matches "rainbow") which is good for stories
+                const hasKeywordMatch = sourceKeywords.some(kw => targetText.includes(kw));
+
+                // Fallback: Exact Name Match (always strong resonance)
+                const exactNameMatch = (m.name && newMem.name && m.name.toLowerCase().trim() === newMem.name.toLowerCase().trim());
+
+                return hasKeywordMatch || exactNameMatch;
+            });
+
+            if(similar.length > 0) {
+                // Set flashing IDs & List
+                resonanceList = similar.map(m => ({id: m.id, lat: m.lat, lng: m.lng}));
+                flashingIds = resonanceList.map(item => item.id);
+                currentResonanceIndex = -1;
+                
+                renderMarkers(); 
+
+                // --- UPDATED: Modal Animation Logic (Fixed at Top) ---
+                const modal = document.getElementById('resonance-modal');
+                const title = document.getElementById('resonance-title');
+                const msgEl = document.getElementById('resonance-msg');
+
+                title.innerText = getText('resTitle');
+                const msg = getText('resMsg').replace('{count}', `<strong>${flashingIds.length}</strong>`);
+                msgEl.innerHTML = msg;
+
+                // 直接显示，无位移
+                modal.classList.remove('hidden');
+                // 微小延时触发 opacity 过渡
+                requestAnimationFrame(() => {
+                    modal.classList.add('active');
+                });
+            }
+        }
+
+        function stopResonanceFlashing() {
+            flashingIds = [];
+            resonanceList = [];
+            renderMarkers(); 
+            // 移除 active 类并隐藏
+            const modal = document.getElementById('resonance-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 500); 
+        }
+
+        function jumpToNextResonance() {
+            if(resonanceList.length === 0) return;
+            currentResonanceIndex = (currentResonanceIndex + 1) % resonanceList.length;
+            const target = resonanceList[currentResonanceIndex];
+            
+            if(target) {
+                map.flyTo([target.lat, target.lng], 16, { duration: 1.5 });
+                const m = memories.find(mem => mem.id === target.id);
+                if(m) showDetail(m); 
+            }
+        }
+        
+        function closeResonanceModal() {
+            const modal = document.getElementById('resonance-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 500);
+        }
+
         function submitUpload() {
+            // Guard clause for Auth
+            const user = auth.currentUser;
+            if (!user) {
+                showToast("Error", "Authentication missing. Cannot upload.");
+                return;
+            }
+
             if(!uploadData.story) { uploadData.story = "（用户未填写故事）"; }
             if(!uploadData.name) { uploadData.name = "未命名气味"; }
             if(!uploadData.nameEn) { uploadData.nameEn = uploadData.name; } 
@@ -1241,25 +1492,48 @@
             if(!uploadData.categories || uploadData.categories.length === 0) uploadData.categories = ['Fresh'];
             const btn = document.getElementById('next-btn'); 
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${getText('processing')}`;
+            
             if (editingId) {
                 const updatePayload = { ...uploadData }; delete updatePayload.id; 
                 db.collection("memories").doc(editingId).update(updatePayload).then(() => {
                     showToast("Success", "Memory updated."); closeUploadModal();
                 }).catch(err => { console.error(err); showToast("Error", "Update failed."); btn.innerHTML = getText('update'); });
             } else {
-                const payload = { ...uploadData, timestamp: firebase.firestore.FieldValue.serverTimestamp(), date: new Date().toLocaleDateString(), comments: [] };
-                db.collection("memories").add(payload).then(() => {
-                    showToast(getText('successToast'), getText('successMsg')); closeUploadModal();
+                // Ensure auth user id is used from the user object directly
+                const payload = { 
+                    ...uploadData, 
+                    authorId: user.uid, 
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                    date: new Date().toLocaleDateString(), 
+                    comments: [] 
+                };
+                db.collection("memories").add(payload).then((docRef) => {
+                    showToast(getText('successToast'), getText('successMsg')); 
+                    closeUploadModal();
+                    // Trigger resonance check after upload success
+                    checkForResonance({id: docRef.id, ...payload});
                 }).catch(err => { console.error(err); showToast("Error", "Upload failed. Please try again."); btn.innerHTML = getText('complete'); });
             }
         }
 
         function showDetail(memory) {
-            // NEW: Mark as visited (Local Storage only)
+            // NEW: Mark as visited
             if(!visitedIds.includes(memory.id)) {
                 visitedIds.push(memory.id);
                 localStorage.setItem('li_visited', JSON.stringify(visitedIds));
-                renderMarkers(); // Refresh markers to apply fade style
+            }
+            
+            // Remove from flashing list if present
+            if(flashingIds.includes(memory.id)) {
+                flashingIds = flashingIds.filter(id => id !== memory.id);
+                renderMarkers(); 
+                
+                if(flashingIds.length === 0) {
+                    stopResonanceFlashing(); 
+                } else {
+                    const msg = getText('resMsg').replace('{count}', `<strong>${flashingIds.length}</strong>`);
+                    document.getElementById('resonance-msg').innerHTML = msg;
+                }
             }
 
             const panel = document.getElementById('detail-panel');
@@ -1267,12 +1541,12 @@
             if (content) {
                 content.setAttribute('data-memory-id', memory.id);
                 renderDetailContent(memory);
-                updateBookmarkBtn(memory.id); // Update bookmark icon state
+                updateBookmarkBtn(memory.id); 
             }
             if (panel) panel.classList.remove('translate-x-full');
         }
 
-        // --- NEW: Bookmark Logic ---
+        // Bookmark Logic
         function toggleCurrentBookmark() {
             const content = document.getElementById('detail-content');
             if (!content) return;
@@ -1453,21 +1727,60 @@
 
         let memoryToDeleteId = null;
         function confirmDelete(id) {
-            memoryToDeleteId = id; document.getElementById('confirm-modal').classList.remove('hidden');
-            document.getElementById('confirm-delete-btn').onclick = () => performDelete();
+            console.log("Preparing delete for ID:", id); // DEBUG LOG
+            memoryToDeleteId = id; 
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            // Remove previous event listeners to avoid stacking
+            const btn = document.getElementById('confirm-delete-btn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.onclick = () => performDelete();
         }
 
         function performDelete() {
-            if (!memoryToDeleteId) return;
-            const btn = document.getElementById('confirm-delete-btn'); const originalText = btn.innerText;
-            btn.innerText = "...";
+            if (!memoryToDeleteId) {
+                showToast("Error", "No memory selected to delete.");
+                return;
+            }
+            
+            // STRICT AUTH CHECK (UPDATED)
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                showToast("Error", "You must be signed in. Please refresh.");
+                return;
+            }
+
+            const btn = document.getElementById('confirm-delete-btn'); 
+            const originalText = btn.innerText;
+            btn.innerText = "Deleting...";
+            btn.disabled = true;
+
+            console.log("Attempting to delete doc:", memoryToDeleteId);
+
             db.collection("memories").doc(memoryToDeleteId).delete().then(() => {
-                showToast("Success", "Memory deleted."); document.getElementById('confirm-modal').classList.add('hidden');
-            }).catch(err => { console.error("Error removing document: ", err); showToast("Error", "Could not delete."); })
-              .finally(() => { btn.innerText = originalText; memoryToDeleteId = null; });
+                showToast("Success", "Memory successfully deleted."); 
+                document.getElementById('confirm-modal').classList.add('hidden');
+                // Refresh Profile list if open
+                if(!document.getElementById('profile-modal').classList.contains('hidden')) {
+                    switchProfileTab('uploads');
+                }
+            }).catch(err => { 
+                console.error("Error removing document: ", err); 
+                // Show ACTUAL error to user for debugging
+                if (err.code === 'permission-denied') {
+                    showToast("System Error", "Permission Denied. Please check Firebase Rules.");
+                } else {
+                    showToast("Error", "Delete failed: " + err.message);
+                }
+            }).finally(() => { 
+                btn.innerText = originalText; 
+                btn.disabled = false;
+                memoryToDeleteId = null; 
+            });
         }
 
-        // --- NEW: Switch Profile Tab (Uploads vs Bookmarks vs Messages) ---
+        // --- Switch Profile Tab ---
         function switchProfileTab(tab) {
             const content = document.getElementById('profile-content');
             if (!content) return;
@@ -1483,7 +1796,7 @@
                 }
             });
 
-            // Logic for 'messages' tab: Clear notification dot when viewed
+            // Logic for 'messages' tab
             if(tab === 'messages') {
                  let currentTotalComments = 0;
                  memories.filter(m => m.authorId === myUserId).forEach(m => {
@@ -1499,7 +1812,6 @@
             content.innerHTML = '';
             
             if(tab === 'messages') {
-                // Aggregate comments for current user
                 let allMessages = [];
                 memories.filter(m => m.authorId === myUserId).forEach(m => {
                     if(m.comments && m.comments.length > 0) {
@@ -1513,8 +1825,6 @@
                         });
                     }
                 });
-                
-                // Sort by timestamp desc
                 allMessages.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
                 if(allMessages.length === 0) {
@@ -1523,9 +1833,7 @@
                     allMessages.forEach(msg => {
                          const div = document.createElement('div');
                          div.className = 'bg-white p-3 rounded-lg border border-amber-100 mb-3 cursor-pointer hover:bg-amber-50 transition relative';
-                         
                          const displayText = (msg.sourceLang && msg.translatedText && currentLang !== msg.sourceLang) ? msg.translatedText : msg.text;
-
                          div.innerHTML = `
                             <div class="flex justify-between items-start mb-1">
                                 <span class="font-bold text-xs text-amber-800">${msg.author || 'Anonymous'}</span>
@@ -1537,11 +1845,9 @@
                                 <span class="text-[10px] text-blue-500 font-bold"><i class="fa-solid fa-reply mr-1"></i>${getText('reply')}</span>
                             </div>
                          `;
-                         
                          div.onclick = () => {
                              document.getElementById('profile-modal').classList.add('hidden');
                              map.setView([msg.lat, msg.lng], 16);
-                             // Need to find the memory object again to show detail
                              const originalMem = memories.find(m => m.id === msg.memoryId);
                              if(originalMem) showDetail(originalMem);
                          };
@@ -1570,27 +1876,29 @@
                     textDiv.innerHTML = `<h3 class="font-bold text-slate-700 text-sm">${n}</h3><p class="text-xs text-slate-400">${m.date}</p>`;
                     
                     const btnGroup = document.createElement('div');
-                    btnGroup.className = 'flex gap-1 opacity-0 group-hover:opacity-100 transition';
+                    btnGroup.className = 'flex gap-2 opacity-0 group-hover:opacity-100 transition z-10';
 
                     if(tab === 'uploads') {
-                        // Edit & Delete for Uploads
+                        // Edit
                         const editBtn = document.createElement('button');
-                        editBtn.className = 'text-slate-300 hover:text-blue-500 p-2';
+                        editBtn.className = 'text-slate-400 hover:text-blue-500 p-2 hover:bg-blue-50 rounded-full transition';
                         editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
                         editBtn.onclick = (e) => { e.stopPropagation(); document.getElementById('profile-modal').classList.add('hidden'); startEditProcess(m); };
 
+                        // Delete (UPDATED UI)
                         const delBtn = document.createElement('button');
-                        delBtn.className = 'text-slate-300 hover:text-red-500 p-2';
+                        delBtn.className = 'text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition';
                         delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                        delBtn.title = "Delete Memory";
                         delBtn.onclick = (e) => { e.stopPropagation(); confirmDelete(m.id); };
                         
                         btnGroup.appendChild(editBtn);
                         btnGroup.appendChild(delBtn);
                     } else {
-                        // Remove bookmark button for Bookmarks tab
+                        // Remove Bookmark
                         const rmBtn = document.createElement('button');
-                        rmBtn.className = 'text-slate-300 hover:text-red-500 p-2';
-                        rmBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i>'; // Solid icon means "remove" in this context
+                        rmBtn.className = 'text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition';
+                        rmBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i>'; 
                         rmBtn.title = "Remove Bookmark";
                         rmBtn.onclick = (e) => { 
                             e.stopPropagation(); 
@@ -1598,7 +1906,7 @@
                             if(idx > -1) {
                                 bookmarkedIds.splice(idx, 1);
                                 localStorage.setItem('li_bookmarks', JSON.stringify(bookmarkedIds));
-                                switchProfileTab('bookmarks'); // Re-render
+                                switchProfileTab('bookmarks'); 
                             }
                         };
                         btnGroup.appendChild(rmBtn);
