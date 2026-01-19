@@ -294,30 +294,77 @@
         }
         .notification-dot.active { display: block; }
 
-        /* --- UPDATED: Resonance Modal Position (Force Fixed at Very Top) --- */
+        /* Resonance Modal Position */
         #resonance-modal {
             position: fixed;
-            /* Force horizontal centering relative to viewport */
             left: 50%;
             transform: translateX(-50%);
-            
-            /* Vertical position: Fixed at Top (High up, between header and buttons) */
             top: 1rem; 
-            
             z-index: 4000;
-            
             transition: opacity 0.5s ease;
             opacity: 0;
-            pointer-events: none; /* Hidden state */
+            pointer-events: none;
         }
-
-        /* Active Display State */
         #resonance-modal.active {
             opacity: 1;
             pointer-events: auto;
-            /* Ensure it stays at top */
             top: 1rem; 
         }
+
+        /* --- Tooltip Styles UPDATED --- */
+        .tooltip-container { position: relative; display: inline-block; cursor: help; margin-left: 6px; }
+        
+        .tooltip-text {
+            visibility: hidden; 
+            width: max-content; 
+            max-width: 220px; /* Limit width */
+            background-color: #5c4b37; 
+            color: #fff;
+            text-align: left; 
+            border-radius: 6px; 
+            padding: 8px 12px; 
+            position: absolute; 
+            z-index: 50;
+            
+            /* Positioning: Below the icon to avoid top overflow */
+            top: 150%; 
+            left: 50%; 
+            transform: translateX(-50%);
+            
+            /* Center alignment on mobile */
+            font-size: 0.7rem; 
+            font-weight: normal; 
+            font-family: 'Inter', sans-serif; 
+            pointer-events: none;
+            line-height: 1.4; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            
+            /* Ensure it doesn't overflow screen width on very small devices */
+            width: 70vw; 
+            min-width: 200px;
+        }
+        
+        /* Responsive adjustments for Tooltip */
+        @media (min-width: 640px) {
+             .tooltip-text {
+                 width: 240px;
+                 min-width: auto;
+             }
+        }
+
+        .tooltip-text::after {
+            /* Arrow pointing UP */
+            content: ""; 
+            position: absolute; 
+            bottom: 100%; /* At the top of the tooltip */
+            left: 50%; 
+            margin-left: -5px;
+            border-width: 5px; 
+            border-style: solid; 
+            border-color: transparent transparent #5c4b37 transparent;
+        }
+        
+        .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body class="text-slate-700">
@@ -356,7 +403,6 @@
                 <p class="text-xl text-slate-600 mb-6 font-serif leading-relaxed" id="intro-desc">
                     Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.
                 </p>
-                <!-- 修改部分：诗意加载语 -->
                 <p class="text-sm text-amber-700 font-bold mb-6 italic" id="intro-status">
                     Awakening the city's invisible memories...
                 </p>
@@ -478,7 +524,7 @@
         </div>
     </div>
 
-    <!-- Resonance Alert Modal (UPDATED: Fixed at Top Center) -->
+    <!-- Resonance Alert Modal -->
     <div id="resonance-modal" class="hidden">
          <div class="hand-drawn-container p-4 max-w-sm bg-white/95 text-center shadow-2xl border-amber-300 relative flex flex-col items-center gap-2">
             <!-- Header -->
@@ -628,10 +674,10 @@
                 step1Title: "选择地点", step1Desc: "鼠标已变为图钉模式，请点击地图。", step2Title: "你的文化背景", step3Title: "气味详情 (可多选)", step4Title: "那一刻的情绪", step5Title: "强度与记忆", step6Title: "故事与图片",
                 prev: "上一步", next: "下一步", complete: "完成上传", update: "更新记忆", intensity: "气味强度", memory: "记忆深刻程度",
                 weak: "弱", strong: "强", vague: "模糊", deep: "刻骨", comments: "评论", send: "发送",
-                storyHolder: "讲述这段气味背后的故事...", heatmapMode: "实感热力图", heatmapDesc: "颜色交融，金色共鸣", normalMode: "普通模式", normalDesc: "返回标记模式", aiTitle: "AI 分析", theme: "主题",
+                storyHolder: "讲述这段气味背后的故事... (必填)", heatmapMode: "实感热力图", heatmapDesc: "颜色交融，金色共鸣", normalMode: "普通模式", normalDesc: "返回标记模式", aiTitle: "AI 分析", theme: "主题",
                 resonance: "发现文化共鸣", resonanceDesc: "不同文化在此处产生交集", chatWith: "对话: ", back: "返回",
                 noRoute: "附近没有足够的点", routeFound: "已生成最佳路线",
-                waiting: "(等待点击...)", namePlaceholder: "例如：雨后的青草", selectCat: "选择气味类别", addPhoto: "点击添加图片",
+                waiting: "(等待点击...)", namePlaceholder: "例如：雨后的青草", selectCat: "选择气味类别", addPhoto: "点击添加图片 (选填)",
                 uploadToastTitle: "开始上传", uploadToastMsg: "请在地图上点击你闻到气味的位置",
                 successToast: "上传成功", successMsg: "你的气味记忆已添加到伦敦地图中。", processing: "处理中...",
                 searchPlaceholder: "搜索邮编/地名...", locationFound: "已定位", locationError: "无法获取您的位置", translating: "翻译中...",
@@ -639,7 +685,10 @@
                 bookmarkAdded: "已收藏", bookmarkRemoved: "已取消收藏",
                 commentedOn: "评论了你的:", reply: "点击回复",
                 resTitle: "气味回响", resMsg: "在文字的缝隙中，找到了 {count} 个相似的记忆碎片……", 
-                resStop: "结束", resVisit: "去看看", resHint: "点击闪烁点阅读并消除"
+                resStop: "结束", resVisit: "去看看", resHint: "点击闪烁点阅读并消除",
+                missingStory: "请填写你的故事，我们需要这段记忆。",
+                storyRequired: "故事是必填的",
+                cultureTooltip: "该项目最初源于伦敦华人社区，现已面向全球开放。这些分类仅作为灵活参考，而非固定定义。"
             },
             en: {
                 introTitle: "London, Inhale", introDesc: "Welcome to the London Smell & Emotion Map.<br>An exploration of scent, memory, and urban belonging.", startBtn: "Start Exploring", langBtn: "切换到中文",
@@ -650,10 +699,10 @@
                 step1Title: "Select Location", step1Desc: "Map is in pin mode. Please click on the map.", step2Title: "Your Cultural Background", step3Title: "Scent Details (Multi-select)", step4Title: "Emotion at that Moment", step5Title: "Intensity & Memory", step6Title: "Story & Image",
                 prev: "Back", next: "Next", complete: "Submit", update: "Update Memory", intensity: "Scent Intensity", memory: "Memory Depth",
                 weak: "Weak", strong: "Strong", vague: "Vague", deep: "Deep", comments: "Comments", send: "Send",
-                storyHolder: "Tell the story behind this scent...", heatmapMode: "Solid Heatmap", heatmapDesc: "Color reflects culture, gold reflects resonance", normalMode: "Normal Mode", normalDesc: "Marker mode", aiTitle: "AI Analysis", theme: "Theme",
+                storyHolder: "Tell the story behind this scent... (Required)", heatmapMode: "Solid Heatmap", heatmapDesc: "Color reflects culture, gold reflects resonance", normalMode: "Normal Mode", normalDesc: "Marker mode", aiTitle: "AI Analysis", theme: "Theme",
                 resonance: "Cultural Resonance", resonanceDesc: "Intersection of different cultures detected", chatWith: "Chat with: ", back: "Back",
                 noRoute: "Not enough points nearby", routeFound: "Best route generated",
-                waiting: "(Waiting for click...)", namePlaceholder: "E.g., Rain on grass", selectCat: "Select Scent Category", addPhoto: "Add Photo",
+                waiting: "(Waiting for click...)", namePlaceholder: "E.g., Rain on grass", selectCat: "Select Scent Category", addPhoto: "Add Photo (Optional)",
                 uploadToastTitle: "Start Upload", uploadToastMsg: "Please click the location on the map.",
                 successToast: "Upload Success", successMsg: "Your scent memory has been added to the London map.", processing: "Processing...",
                 searchPlaceholder: "Search postcode/place...", locationFound: "Located", locationError: "Cannot access location", translating: "Translating...",
@@ -661,24 +710,31 @@
                 bookmarkAdded: "Saved to Bookmarks", bookmarkRemoved: "Removed from Bookmarks",
                 commentedOn: "Commented on:", reply: "Click to reply",
                 resTitle: "Echoes in the Air", resMsg: "Within the words, {count} similar memory fragments were found...", 
-                resStop: "Stop", resVisit: "Visit", resHint: "Click marker to read & dismiss"
+                resStop: "Stop", resVisit: "Visit", resHint: "Click marker to read & dismiss",
+                missingStory: "Please share your story, we need this memory.",
+                storyRequired: "Story is required",
+                cultureTooltip: "The project originally started with Chinese communities in London and is now open to participants worldwide. These categories are intended as a flexible reference rather than fixed definitions."
             }
         };
 
         let currentLang = 'en';
         const categories = { 'Floral': { color: '#F4A4A4', label: '花香调', en: 'Floral' }, 'Fruity': { color: '#F7C5A0', label: '果香调', en: 'Fruity' }, 'Woody': { color: '#D4B996', label: '木质调', en: 'Woody' }, 'Fresh': { color: '#A0C4FF', label: '清新调', en: 'Fresh' }, 'Sweet': { color: '#FCEEB5', label: '甜食', en: 'Sweet' }, 'Food': { color: '#FF8C8C', label: '食物', en: 'Food' }, 'Burnt': { color: '#B0B7C0', label: '焦味', en: 'Burnt' }, 'Mall': { color: '#DCD0FF', label: '商场', en: 'Mall' }, 'Dusty': { color: '#C7C1BD', label: '尘土', en: 'Dusty' }, 'Animalic': { color: '#A67B5B', label: '动物', en: 'Animalic' }, 'Rotten': { color: '#4A4A4A', label: '腐烂', en: 'Rotten' } };
         const emotions = [ { label: '温暖', en: 'Warm', emoji: '🥰' }, { label: '怀旧', en: 'Nostalgic', emoji: '🧸' }, { label: '平静', en: 'Calm', emoji: '😌' }, { label: '喜悦', en: 'Joyful', emoji: '🥳' }, { label: '惊讶', en: 'Surprised', emoji: '😲' }, { label: '悲伤', en: 'Sad', emoji: '🥺' }, { label: '不安', en: 'Anxious', emoji: '😰' }, { label: '愤怒', en: 'Angry', emoji: '😡' }, { label: '疲惫', en: 'Tired', emoji: '😫' }, { label: '迷茫', en: 'Lost', emoji: '😵‍💫' }, { label: '害怕', en: 'Scared', emoji: '😖' }, { label: '厌恶', en: 'Disgust', emoji: '🤢' } ];
+        
+        // --- NEW CULTURES LIST ---
+        // Retaining old IDs where possible for compatibility, creating new ones for new categories
         const cultures = [ 
-            { id: 'British', label: '英国', en: 'British', color: '#3b82f6' }, 
-            { id: 'Chinese', label: '中国', en: 'Chinese', color: '#ef4444' }, 
-            { id: 'Indian', label: '印度', en: 'Indian', color: '#f97316' }, 
-            { id: 'Pakistani', label: '巴基斯坦', en: 'Pakistani', color: '#10b981' }, 
-            { id: 'Bangladeshi', label: '孟加拉', en: 'Bangladeshi', color: '#06b6d4' }, 
-            { id: 'African', label: '非洲', en: 'African', color: '#8b5cf6' }, 
-            { id: 'Caribbean', label: '加勒比', en: 'Caribbean', color: '#eab308' }, 
-            { id: 'Middle Eastern', label: '中东', en: 'Middle Eastern', color: '#ec4899' }, 
-            { id: 'Mixed', label: '混合', en: 'Mixed', color: '#64748b' }, 
-            { id: 'Other', label: '其他', en: '其他', color: '#94a3b8' } 
+            { id: 'Chinese', label: '中国', en: 'Chinese', color: '#ef4444' }, // Keep Red
+            { id: 'East Asian', label: '东亚 (如日本、韩国)', en: 'East Asian (e.g. Japan, Korea)', color: '#2dd4bf' }, // Teal
+            { id: 'Southeast Asian', label: '东南亚', en: 'Southeast Asian', color: '#84cc16' }, // Lime
+            { id: 'South Asian', label: '南亚 (如印度、巴基斯坦)', en: 'South Asian (e.g. India, Pakistan)', color: '#f97316' }, // Orange (Was Indian)
+            { id: 'British', label: '英国', en: 'British', color: '#3b82f6' }, // Keep Blue
+            { id: 'European', label: '欧洲 (非英国)', en: 'European (non-UK)', color: '#6366f1' }, // Indigo
+            { id: 'Middle Eastern', label: '中东', en: 'Middle Eastern', color: '#ec4899' }, // Keep Pink
+            { id: 'AfricanCaribbean', label: '非洲 / 加勒比', en: 'African / Caribbean', color: '#a855f7' }, // Purple
+            { id: 'Americas', label: '美洲', en: 'Americas (North & South)', color: '#10b981' }, // Emerald
+            { id: 'Mixed', label: '混合背景', en: 'Mixed background', color: '#64748b' }, // Slate
+            { id: 'Other', label: '其他', en: 'Other', color: '#94a3b8' } // Gray
         ];
 
         let memories = [];
@@ -710,7 +766,6 @@
                 .then((userCredential) => {
                     console.log("Signed in anonymously as:", userCredential.user.uid);
                     myUserId = userCredential.user.uid;
-                    // We can save it, but the app logic now relies on the Auth object primarily
                     localStorage.setItem('london_inhale_uid', myUserId);
                     
                     // 登录成功后再加载数据
@@ -721,7 +776,6 @@
                 .catch((error) => {
                     console.error("Auth failed:", error);
                     showToast("Error", "Authentication failed. " + error.message);
-                    // 即使失败也尝试加载数据（只读模式）
                     setupRealtimeListener();
                 });
 
@@ -730,7 +784,6 @@
                 if (user) {
                     myUserId = user.uid;
                     localStorage.setItem('london_inhale_uid', myUserId);
-                    // Refresh UI to show delete buttons if we own anything
                     if(memories.length > 0) renderMarkers();
                 }
             });
@@ -751,7 +804,6 @@
                 const startBtn = document.getElementById('start-btn');
                 const statusEl = document.getElementById('intro-status');
                 
-                // Force poetic text, prevent overwriting with generic text
                 if(statusEl) statusEl.innerHTML = "Awakening the city's invisible memories..."; 
                 
                 if(loadingContainer) loadingContainer.style.display = 'none';
@@ -762,9 +814,7 @@
                 renderDailyScent();
                 checkNotifications(); // Check for new comments
 
-                // Refresh Profile if open
                 if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                    // Check active tab
                     const t1 = document.getElementById('tab-uploads');
                     const t2 = document.getElementById('tab-bookmarks');
                     const t3 = document.getElementById('tab-messages');
@@ -793,15 +843,12 @@
 
         // --- Notification Check ---
         function checkNotifications() {
-            // Count total comments on MY posts
             let currentTotalComments = 0;
             memories.filter(m => m.authorId === myUserId).forEach(m => {
                 if(m.comments) currentTotalComments += m.comments.length;
             });
 
             const dot = document.getElementById('profile-notify-dot');
-            
-            // If we have more comments now than last time we checked
             if (currentTotalComments > lastKnownCommentCount) {
                 dot.classList.add('active');
             } else {
@@ -809,7 +856,7 @@
             }
         }
 
-        // --- Analysis Charts (Unchanged Logic, simplified render) ---
+        // --- Analysis Charts ---
         var cultureChart = null;
         var emotionChart = null;
 
@@ -829,7 +876,6 @@
             Object.keys(categories).forEach(k => catCounts[k] = 0);
             const emotionCounts = {}; 
             
-            // Keyword Analysis
             const stopWords = ['the', 'a', 'an', 'of', 'in', 'and', 'with', 'smell', 'scent', 'like', 'is', 'de', 'le', 'la', '的', '味', '气味', '味道', '香'];
             const wordCounts = {};
             
@@ -960,7 +1006,6 @@
             safeSetHTML('res-next-btn', `<span>${getText('resVisit')}</span> <i class="fa-solid fa-location-arrow"></i>`);
             safeSetText('res-hint', getText('resHint'));
             
-            // Only update message text if list exists, otherwise it clears dynamic count
             if(resonanceList.length === 0) safeSetHTML('resonance-msg', getText('resMsg').replace('{count}', '...'));
 
             document.getElementById('location-search-input').placeholder = getText('searchPlaceholder');
@@ -970,6 +1015,15 @@
         }
 
         function toggleFilterPopup() { document.getElementById('filter-popup').classList.toggle('hidden'); }
+
+        // Helper to safely get culture object even if ID is old/legacy
+        function safeGetCulture(id) {
+            const found = cultures.find(c => c.id === id);
+            if (found) return found;
+            // Fallback for legacy data (e.g., 'Indian', 'Pakistani' which are now 'South Asian')
+            // We return a dummy object so code doesn't break, using gray color.
+            return { id: id, label: id, en: id, color: '#94a3b8' };
+        }
 
         function renderFilters() {
             const dynamicContent = document.getElementById('filter-dynamic-content');
@@ -1113,6 +1167,10 @@
 
         function getFilteredMemories() {
             return memories.filter(m => {
+                // Modified to handle legacy cultures: if ID is not in activeFilters list but user didn't select ANY culture filter, we show it.
+                // If user selected some culture filters, legacy ID won't match (unless mapped).
+                // With current logic: safeGetCulture(m.culture).id will be 'Indian' etc. If user selected 'South Asian', 'Indian' won't match.
+                // This is expected behavior unless we migrate data.
                 const cM = activeFilters.cultures.length===0 || activeFilters.cultures.includes(m.culture);
                 const eM = activeFilters.emotions.length===0 || activeFilters.emotions.includes(m.emotion);
                 const catM = activeFilters.categories.length===0 || (m.categories && m.categories.some(c=>activeFilters.categories.includes(c)));
@@ -1141,12 +1199,8 @@
                 const size = 22 + ((m.intensity || 3) * 6); 
                 const emojiSize = size * 0.55;
                 
-                // IMPORTANT: Only show "mine" if Auth ID is ready and matches
                 const isMine = myUserId && m.authorId === myUserId;
-                
-                // Visited check
                 const isVisited = visitedIds.includes(m.id);
-                // Resonance Check
                 const isFlashing = flashingIds.includes(m.id);
 
                 let iconClass = `smell-marker ${isMine ? 'is-mine' : ''} ${isVisited ? 'visited' : ''} ${isFlashing ? 'resonance-flash' : ''}`;
@@ -1166,7 +1220,7 @@
             const batches = {};
             const useCultureColor = activeFilters.cultures.length > 0;
             filtered.forEach(m => { 
-                const cult = cultures.find(c=>c.id===m.culture);
+                const cult = safeGetCulture(m.culture); // Use safe getter
                 const groupKey = useCultureColor ? m.culture : ((m.categories && m.categories[0])||'Fresh');
                 const color = useCultureColor ? (cult ? cult.color : '#999') : (categories[groupKey]?.color || '#999');
                 const radius = 15 + ((m.intensity||3) * 15); 
@@ -1255,7 +1309,6 @@
             document.getElementById('profile-name').innerText = myUserName;
             document.getElementById('user-id-display').innerText = "ID: " + (myUserId ? (myUserId.substring(0, 8) + "...") : "Connecting...");
             if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                // Check active tab
                 const t1 = document.getElementById('tab-uploads');
                 const t2 = document.getElementById('tab-bookmarks');
                 const t3 = document.getElementById('tab-messages');
@@ -1309,13 +1362,27 @@
                      if(translated && translated !== uploadData.name) { uploadData.nameEn = translated; uploadData.nameEnTranslated = true; } else { uploadData.nameEn = uploadData.name; }
                      renderStep(step);
                 }
-                if (step === 6 && uploadData.story && !uploadData.storyEnTranslated) {
-                     const btnOriginal = nextBtn.innerHTML; nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
-                     const translated = await tryTranslate(uploadData.story, 'zh', 'en');
-                     if(translated) uploadData.storyEn = translated; else uploadData.storyEn = uploadData.story;
-                     uploadData.storyEnTranslated = true;
-                     submitUpload(); return;
-                } else if (step === 6) { submitUpload(); return; }
+                
+                // STEP 6: Validation Logic for Story (Required) & Translation
+                if (step === 6) {
+                    if (!uploadData.story || !uploadData.story.trim()) {
+                        showToast("Tip", getText('missingStory'));
+                        return;
+                    }
+
+                    if (!uploadData.storyEnTranslated) {
+                        const btnOriginal = nextBtn.innerHTML; 
+                        nextBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating...`;
+                        const translated = await tryTranslate(uploadData.story, 'zh', 'en');
+                        if(translated) uploadData.storyEn = translated; else uploadData.storyEn = uploadData.story;
+                        uploadData.storyEnTranslated = true;
+                        submitUpload(); 
+                        return;
+                    } else {
+                        submitUpload();
+                        return;
+                    }
+                }
                 
                 nextStep();
             };
@@ -1330,7 +1397,22 @@
                     html = `<div class="text-center"><i class="fa-solid fa-thumbtack text-6xl text-amber-300 mb-4 animate-bounce"></i><h2 class="text-2xl font-bold mb-2">${getText('step1Title')}</h2><p class="text-slate-500">${getText('step1Desc')}</p><p class="text-xs text-amber-600 mt-2 font-bold">${getText('waiting')}</p></div>`; nextBtn.disabled = true; 
                     break;
                 case 2: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step2Title')}</h2><div class="grid grid-cols-2 gap-3">${cultures.map(c => `<button onclick="selectOption('culture', '${c.id}', this)" class="step-opt px-4 py-3 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-left transition text-sm font-medium hand-drawn-btn ${uploadData.culture === c.id ? 'active' : ''}">${currentLang==='en'?c.en:c.label}</button>`).join('')}</div></div>`;
+                    // Updated: Compact Layout + Scrollbar + Translated Tooltip
+                    html = `<div>
+                            <div class="flex items-center gap-2 mb-4">
+                                <h2 class="text-2xl font-bold">${getText('step2Title')}</h2>
+                                <div class="tooltip-container">
+                                    <i class="fa-solid fa-circle-info text-amber-400 hover:text-amber-600 transition"></i>
+                                    <div class="tooltip-text">
+                                        ${getText('cultureTooltip')}
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Added max-height and custom scrollbar styles implicitly via no-scrollbar class -->
+                            <div class="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pr-1 no-scrollbar">
+                                ${cultures.map(c => `<button onclick="selectOption('culture', '${c.id}', this)" class="step-opt px-3 py-2 rounded-lg border border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-left transition text-xs font-medium hand-drawn-btn ${uploadData.culture === c.id ? 'active' : ''}">${currentLang==='en'?c.en:c.label}</button>`).join('')}
+                            </div>
+                        </div>`;
                     break;
                 case 3: 
                     html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step3Title')}</h2><input type="text" id="smell-name" placeholder="${getText('namePlaceholder')}" class="w-full p-4 rounded-lg border border-amber-200 mb-4 focus:ring-2 focus:ring-amber-500 outline-none hand-drawn-container bg-white" oninput="uploadData.name = this.value;" value="${uploadData.name||''}"><p class="text-xs font-bold text-slate-400 uppercase mb-2">${getText('selectCat')}</p><div class="flex flex-wrap gap-2">${Object.entries(categories).map(([key, val]) => `<button onclick="toggleCategory('${key}', this)" class="step-opt-multi px-3 py-2 rounded-full border border-amber-200 text-xs flex items-center gap-2 hover:bg-amber-50 transition hand-drawn-btn ${uploadData.categories.includes(key)?'active':''}" data-val="${key}"><span class="w-3 h-3 rounded-full" style="background:${val.color}"></span>${currentLang==='en'?val.en:val.label}</button>`).join('')}</div></div>`;
@@ -1343,7 +1425,8 @@
                     if(!uploadData.intensity) uploadData.intensity = 3; if(!uploadData.memoryLevel) uploadData.memoryLevel = 3; 
                     break;
                 case 6: 
-                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step6Title')}</h2><div class="mb-4"><label class="block w-full border-2 border-dashed border-amber-300 rounded-xl p-4 flex flex-col items-center justify-center bg-amber-50/50 hover:bg-amber-100/50 cursor-pointer transition text-amber-700 h-32 relative"><input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(this)"><div id="upload-placeholder" class="text-center ${uploadData.imageUrl?'hidden':''}"><i class="fa-regular fa-image text-2xl mb-1"></i><span class="text-xs font-medium block">${getText('addPhoto')}</span></div><div id="img-preview-container" class="${uploadData.imageUrl?'':'hidden'} absolute inset-0 p-2"><img id="img-preview" src="${uploadData.imageUrl||''}" class="w-full h-full object-contain rounded-lg"></div></label></div><textarea class="w-full h-24 p-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none font-serif resize-none hand-drawn-container bg-white" placeholder="${getText('storyHolder')}" oninput="uploadData.story = this.value;">${uploadData.story||''}</textarea></div>`;
+                    // Updated: Story is Required (placeholder updated), Image Optional (explicit label)
+                    html = `<div><h2 class="text-2xl font-bold mb-4">${getText('step6Title')}</h2><div class="mb-4"><label class="block w-full border-2 border-dashed border-amber-300 rounded-xl p-4 flex flex-col items-center justify-center bg-amber-50/50 hover:bg-amber-100/50 cursor-pointer transition text-amber-700 h-32 relative"><input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(this)"><div id="upload-placeholder" class="text-center ${uploadData.imageUrl?'hidden':''}"><i class="fa-regular fa-image text-2xl mb-1"></i><span class="text-xs font-medium block">${getText('addPhoto')}</span></div><div id="img-preview-container" class="${uploadData.imageUrl?'':'hidden'} absolute inset-0 p-2"><img id="img-preview" src="${uploadData.imageUrl||''}" class="w-full h-full object-contain rounded-lg"></div></label></div><textarea class="w-full h-24 p-3 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none font-serif resize-none hand-drawn-container bg-white" placeholder="${getText('storyHolder')}" oninput="uploadData.story = this.value;">${uploadData.story||''}</textarea><p class="text-xs text-red-400 mt-1 hidden" id="story-error">${getText('storyRequired')}</p></div>`;
                     nextBtn.innerHTML = `${editingId ? getText('update') : getText('complete')} <i class="fa-solid fa-check ml-2"></i>`;
                     break;
             }
@@ -1375,9 +1458,7 @@
             document.getElementById('map').classList.remove('cursor-pin');
         }
 
-        // --- UPDATED: Keyword Extraction & Union Matching ---
         function checkForResonance(newMem) {
-            // Enhanced Stopwords List (Chinese & English)
             const stopWords = new Set([
                 'the', 'a', 'an', 'in', 'on', 'of', 'and', 'with', 'to', 'is', 'it', 'for', 'my', 'i', 'me', 'we', 'our',
                 'smell', 'scent', 'feels', 'like', 'but', 'or', 'so', 'at', 'by', 'from', 'up', 'out', 'as',
@@ -1386,51 +1467,33 @@
                 '那', '个', '只', '又', '因为', '所以', '虽然', '但是', '有点', '一些', '就像', '闻起来'
             ]);
             
-            // Helper to tokenize and filter text
             const getKeywords = (text) => {
                 if(!text) return [];
-                // Split by spaces, punctuation, symbols (covers both CN and EN loosely)
-                // Using a regex that matches anything NOT a word character or Chinese character
                 return text.toLowerCase()
-                    .split(/[^a-zA-Z0-9\u4e00-\u9fa5]+/) // Split by non-alphanumeric/non-Chinese
-                    .filter(w => w.length > 0 && !stopWords.has(w)); // Filter empty strings and stopwords
+                    .split(/[^a-zA-Z0-9\u4e00-\u9fa5]+/)
+                    .filter(w => w.length > 0 && !stopWords.has(w));
             };
 
             const nameKeywords = getKeywords(newMem.name);
             const storyKeywords = getKeywords(newMem.story);
-            
-            // Combine all unique keywords from the new memory
             const sourceKeywords = [...new Set([...nameKeywords, ...storyKeywords])];
             
-            console.log("Extracted Keywords:", sourceKeywords);
-
-            if (sourceKeywords.length === 0) return; // No keywords to match
+            if (sourceKeywords.length === 0) return;
 
             const similar = memories.filter(m => {
                 if(m.id === newMem.id) return false;
-                
-                // Get target keywords
                 const targetText = ((m.name || "") + " " + (m.story || "")).toLowerCase();
-                
-                // UNION CHECK: Does target text contain ANY of the source keywords?
-                // Using 'includes' for a slightly loose match (e.g. "rain" matches "rainbow") which is good for stories
                 const hasKeywordMatch = sourceKeywords.some(kw => targetText.includes(kw));
-
-                // Fallback: Exact Name Match (always strong resonance)
                 const exactNameMatch = (m.name && newMem.name && m.name.toLowerCase().trim() === newMem.name.toLowerCase().trim());
-
                 return hasKeywordMatch || exactNameMatch;
             });
 
             if(similar.length > 0) {
-                // Set flashing IDs & List
                 resonanceList = similar.map(m => ({id: m.id, lat: m.lat, lng: m.lng}));
                 flashingIds = resonanceList.map(item => item.id);
                 currentResonanceIndex = -1;
-                
                 renderMarkers(); 
 
-                // --- UPDATED: Modal Animation Logic (Fixed at Top) ---
                 const modal = document.getElementById('resonance-modal');
                 const title = document.getElementById('resonance-title');
                 const msgEl = document.getElementById('resonance-msg');
@@ -1439,12 +1502,8 @@
                 const msg = getText('resMsg').replace('{count}', `<strong>${flashingIds.length}</strong>`);
                 msgEl.innerHTML = msg;
 
-                // 直接显示，无位移
                 modal.classList.remove('hidden');
-                // 微小延时触发 opacity 过渡
-                requestAnimationFrame(() => {
-                    modal.classList.add('active');
-                });
+                requestAnimationFrame(() => { modal.classList.add('active'); });
             }
         }
 
@@ -1452,7 +1511,6 @@
             flashingIds = [];
             resonanceList = [];
             renderMarkers(); 
-            // 移除 active 类并隐藏
             const modal = document.getElementById('resonance-modal');
             modal.classList.remove('active');
             setTimeout(() => modal.classList.add('hidden'), 500); 
@@ -1470,14 +1528,7 @@
             }
         }
         
-        function closeResonanceModal() {
-            const modal = document.getElementById('resonance-modal');
-            modal.classList.remove('active');
-            setTimeout(() => modal.classList.add('hidden'), 500);
-        }
-
         function submitUpload() {
-            // Guard clause for Auth
             const user = auth.currentUser;
             if (!user) {
                 showToast("Error", "Authentication missing. Cannot upload.");
@@ -1499,7 +1550,6 @@
                     showToast("Success", "Memory updated."); closeUploadModal();
                 }).catch(err => { console.error(err); showToast("Error", "Update failed."); btn.innerHTML = getText('update'); });
             } else {
-                // Ensure auth user id is used from the user object directly
                 const payload = { 
                     ...uploadData, 
                     authorId: user.uid, 
@@ -1510,27 +1560,22 @@
                 db.collection("memories").add(payload).then((docRef) => {
                     showToast(getText('successToast'), getText('successMsg')); 
                     closeUploadModal();
-                    // Trigger resonance check after upload success
                     checkForResonance({id: docRef.id, ...payload});
                 }).catch(err => { console.error(err); showToast("Error", "Upload failed. Please try again."); btn.innerHTML = getText('complete'); });
             }
         }
 
         function showDetail(memory) {
-            // NEW: Mark as visited
             if(!visitedIds.includes(memory.id)) {
                 visitedIds.push(memory.id);
                 localStorage.setItem('li_visited', JSON.stringify(visitedIds));
             }
             
-            // Remove from flashing list if present
             if(flashingIds.includes(memory.id)) {
                 flashingIds = flashingIds.filter(id => id !== memory.id);
                 renderMarkers(); 
-                
-                if(flashingIds.length === 0) {
-                    stopResonanceFlashing(); 
-                } else {
+                if(flashingIds.length === 0) { stopResonanceFlashing(); } 
+                else {
                     const msg = getText('resMsg').replace('{count}', `<strong>${flashingIds.length}</strong>`);
                     document.getElementById('resonance-msg').innerHTML = msg;
                 }
@@ -1546,7 +1591,6 @@
             if (panel) panel.classList.remove('translate-x-full');
         }
 
-        // Bookmark Logic
         function toggleCurrentBookmark() {
             const content = document.getElementById('detail-content');
             if (!content) return;
@@ -1576,7 +1620,8 @@
         function renderDetailContent(memory) {
             const content = document.getElementById('detail-content');
             if (!content) return;
-            const cultureLabel = cultures.find(c => c.id === memory.culture)?.[currentLang === 'en' ? 'en' : 'label'] || memory.culture;
+            const cultureObj = safeGetCulture(memory.culture);
+            const cultureLabel = cultureObj?.[currentLang === 'en' ? 'en' : 'label'] || memory.culture;
             const name = currentLang === 'en' ? (memory.nameEn || memory.name) : memory.name;
             const story = currentLang === 'en' ? (memory.storyEn || memory.story) : memory.story;
             const emotion = currentLang === 'en' ? (memory.emotionEn || memory.emotion) : memory.emotion;
@@ -1707,7 +1752,6 @@
         function toggleRouteMenu() { const menu = document.getElementById('route-menu'); menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex'; }
         
         function toggleProfile() { 
-            // Reset Notification count on open
             let currentTotalComments = 0;
             memories.filter(m => m.authorId === myUserId).forEach(m => { if(m.comments) currentTotalComments += m.comments.length; });
             lastKnownCommentCount = currentTotalComments;
@@ -1727,65 +1771,41 @@
 
         let memoryToDeleteId = null;
         function confirmDelete(id) {
-            console.log("Preparing delete for ID:", id); // DEBUG LOG
             memoryToDeleteId = id; 
             document.getElementById('confirm-modal').classList.remove('hidden');
-            // Remove previous event listeners to avoid stacking
             const btn = document.getElementById('confirm-delete-btn');
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
-            
             newBtn.onclick = () => performDelete();
         }
 
         function performDelete() {
-            if (!memoryToDeleteId) {
-                showToast("Error", "No memory selected to delete.");
-                return;
-            }
-            
-            // STRICT AUTH CHECK (UPDATED)
+            if (!memoryToDeleteId) { showToast("Error", "No memory selected to delete."); return; }
             const user = firebase.auth().currentUser;
-            if (!user) {
-                showToast("Error", "You must be signed in. Please refresh.");
-                return;
-            }
+            if (!user) { showToast("Error", "You must be signed in. Please refresh."); return; }
 
             const btn = document.getElementById('confirm-delete-btn'); 
             const originalText = btn.innerText;
             btn.innerText = "Deleting...";
             btn.disabled = true;
 
-            console.log("Attempting to delete doc:", memoryToDeleteId);
-
             db.collection("memories").doc(memoryToDeleteId).delete().then(() => {
                 showToast("Success", "Memory successfully deleted."); 
                 document.getElementById('confirm-modal').classList.add('hidden');
-                // Refresh Profile list if open
-                if(!document.getElementById('profile-modal').classList.contains('hidden')) {
-                    switchProfileTab('uploads');
-                }
+                if(!document.getElementById('profile-modal').classList.contains('hidden')) { switchProfileTab('uploads'); }
             }).catch(err => { 
                 console.error("Error removing document: ", err); 
-                // Show ACTUAL error to user for debugging
-                if (err.code === 'permission-denied') {
-                    showToast("System Error", "Permission Denied. Please check Firebase Rules.");
-                } else {
-                    showToast("Error", "Delete failed: " + err.message);
-                }
+                if (err.code === 'permission-denied') { showToast("System Error", "Permission Denied. Please check Firebase Rules."); }
+                else { showToast("Error", "Delete failed: " + err.message); }
             }).finally(() => { 
-                btn.innerText = originalText; 
-                btn.disabled = false;
-                memoryToDeleteId = null; 
+                btn.innerText = originalText; btn.disabled = false; memoryToDeleteId = null; 
             });
         }
 
-        // --- Switch Profile Tab ---
         function switchProfileTab(tab) {
             const content = document.getElementById('profile-content');
             if (!content) return;
             
-            // Tab styling
             const tabs = ['uploads', 'bookmarks', 'messages'];
             tabs.forEach(t => {
                 const btn = document.getElementById('tab-' + t);
@@ -1796,7 +1816,6 @@
                 }
             });
 
-            // Logic for 'messages' tab
             if(tab === 'messages') {
                  let currentTotalComments = 0;
                  memories.filter(m => m.authorId === myUserId).forEach(m => {
@@ -1857,13 +1876,9 @@
                 return;
             }
 
-            // Logic for Uploads & Bookmarks
             let listToRender = [];
-            if(tab === 'uploads') {
-                listToRender = memories.filter(m => m.authorId === myUserId);
-            } else {
-                listToRender = memories.filter(m => bookmarkedIds.includes(m.id));
-            }
+            if(tab === 'uploads') { listToRender = memories.filter(m => m.authorId === myUserId); } 
+            else { listToRender = memories.filter(m => bookmarkedIds.includes(m.id)); }
 
             if(listToRender.length === 0) {
                 content.innerHTML = `<p class="text-center text-slate-400 mt-10">No ${tab} yet.</p>`;
@@ -1879,13 +1894,11 @@
                     btnGroup.className = 'flex gap-2 opacity-0 group-hover:opacity-100 transition z-10';
 
                     if(tab === 'uploads') {
-                        // Edit
                         const editBtn = document.createElement('button');
                         editBtn.className = 'text-slate-400 hover:text-blue-500 p-2 hover:bg-blue-50 rounded-full transition';
                         editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
                         editBtn.onclick = (e) => { e.stopPropagation(); document.getElementById('profile-modal').classList.add('hidden'); startEditProcess(m); };
 
-                        // Delete (UPDATED UI)
                         const delBtn = document.createElement('button');
                         delBtn.className = 'text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition';
                         delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
@@ -1895,7 +1908,6 @@
                         btnGroup.appendChild(editBtn);
                         btnGroup.appendChild(delBtn);
                     } else {
-                        // Remove Bookmark
                         const rmBtn = document.createElement('button');
                         rmBtn.className = 'text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition';
                         rmBtn.innerHTML = '<i class="fa-solid fa-bookmark"></i>'; 
