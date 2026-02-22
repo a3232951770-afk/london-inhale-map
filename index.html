@@ -234,6 +234,13 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
+        /* 自定义美化滚动条，贴合网站羊皮纸/琥珀色风格 */
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(212, 185, 150, 0.8) transparent; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin-top: 4px; margin-bottom: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(212, 185, 150, 0.6); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(166, 123, 91, 0.9); }
+        
         #weather-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
         
         /* 色彩交融 */
@@ -369,25 +376,7 @@
 </head>
 <body class="text-slate-700">
 
-    <script>
-        // --- Firebase Configuration ---
-        // 直接使用你的 london-inhale 配置
-        const firebaseConfig = {
-          apiKey: "AIzaSyBGp-AjGwAaKp4bCoqDoYZ51BCof4mCoo0",
-          authDomain: "london-inhale.firebaseapp.com",
-          projectId: "london-inhale",
-          storageBucket: "london-inhale.firebasestorage.app",
-          messagingSenderId: "94851508636",
-          appId: "1:94851508636:web:7d9d430f8dadef5c498059",
-          measurementId: "G-CBPE8MQT0F"
-        };
-
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-    </script>
-
-    <!-- Intro -->
+    <!-- Intro (加载页) -->
     <div id="intro-screen">
         <div class="hand-drawn-container p-10 max-w-2xl text-center shadow-2xl relative bg-white/90 border border-amber-100 mx-4">
             <div class="absolute -top-6 -left-6 text-6xl text-amber-300 opacity-80 transform -rotate-12"><i class="fa-solid fa-cloud"></i></div>
@@ -409,6 +398,7 @@
                 <div class="text-amber-600 mb-8" id="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>
             </div>
 
+            <!-- 等待加载完成或超时后再显示 -->
             <button id="start-btn" onclick="startExperience()" class="hidden bg-amber-700 text-white px-10 py-4 rounded-full text-lg shadow-lg hover:bg-amber-800 transition transform hover:scale-105 hand-drawn-btn border-amber-900">
                 <span id="intro-btn">Start Exploring</span> <i class="fa-solid fa-arrow-right ml-2"></i>
             </button>
@@ -443,7 +433,7 @@
                 </div>
             </div>
 
-            <div class="hand-drawn-container flex items-center bg-white/90 p-1 search-container group" id="search-box">
+            <div class="search-container expanded group hand-drawn-container flex items-center bg-white/90 p-1" id="search-box">
                 <button class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-amber-600 shrink-0" onclick="toggleSearch()">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
@@ -453,6 +443,12 @@
 
         <!-- Top Right -->
         <div class="flex flex-col gap-3 pointer-events-auto items-end relative">
+            
+            <!-- 公告栏按钮 (取消红点) -->
+            <button onclick="toggleAnnouncement()" id="announcement-btn" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm rounded-full relative" title="Notices & Events">
+                <i class="fa-solid fa-bullhorn text-slate-600 hover:text-amber-600 transition"></i>
+            </button>
+
             <button onclick="toggleProfile()" class="hand-drawn-container w-10 h-10 md:w-12 md:h-12 flex items-center justify-center hover:bg-amber-50 transition shadow-sm group relative z-50 rounded-full" title="Profile">
                 <i class="fa-regular fa-user text-slate-600"></i>
                 <div id="profile-notify-dot" class="notification-dot"></div>
@@ -510,8 +506,24 @@
         </div>
     </div>
 
+    <!-- 公告栏 Modal -->
+    <div id="announcement-modal" class="fixed inset-0 z-[2500] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 pointer-events-auto" onclick="closeAnnouncement()">
+        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-2xl max-h-[85vh] flex flex-col bg-amber-50/98 relative overflow-hidden" onclick="event.stopPropagation()">
+            <button onclick="closeAnnouncement()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            
+            <div class="p-6 border-b border-amber-200 bg-amber-100/50">
+                <h2 class="text-2xl font-serif font-bold text-amber-900"><i class="fa-solid fa-bullhorn mr-2"></i><span id="announcement-modal-title">Notices & Events 公告与活动</span></h2>
+                <p class="text-xs text-slate-500 uppercase tracking-widest mt-1">London, Inhale Updates</p>
+            </div>
+
+            <div class="flex-grow overflow-y-auto overscroll-contain p-4 md:p-6 space-y-6 custom-scrollbar" id="announcement-list">
+                <!-- Announcements will be injected here via JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- Upload Modal -->
-    <div id="upload-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div id="upload-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 pointer-events-auto">
         <div class="hand-drawn-container w-[95%] md:w-full md:max-w-2xl overflow-hidden relative min-h-[500px] flex flex-col bg-amber-50/95">
             <button onclick="closeUploadModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10 pointer-events-auto"><i class="fa-solid fa-xmark text-xl"></i></button>
             <div class="h-1 bg-amber-100 w-full"><div id="progress-bar" class="h-full bg-amber-500 w-1/6 transition-all duration-300"></div></div>
@@ -525,7 +537,7 @@
     </div>
 
     <!-- Resonance Alert Modal -->
-    <div id="resonance-modal" class="hidden">
+    <div id="resonance-modal" class="hidden pointer-events-auto">
          <div class="hand-drawn-container p-4 max-w-sm bg-white/95 text-center shadow-2xl border-amber-300 relative flex flex-col items-center gap-2">
             <!-- Header -->
             <div class="flex items-center gap-2 text-amber-900 mb-1">
@@ -552,7 +564,7 @@
     </div>
 
     <!-- Detail Panel -->
-    <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col">
+    <div id="detail-panel" class="fixed top-0 right-0 h-full w-full md:w-96 hand-drawn-container z-[1500] translate-x-full transition-transform duration-300 shadow-2xl overflow-y-auto p-6 bg-amber-50/95 flex flex-col pointer-events-auto">
         <!-- Bookmark Button -->
         <div class="absolute top-4 left-4 z-10">
             <button id="bookmark-btn" onclick="toggleCurrentBookmark()" class="text-slate-400 hover:text-amber-500 text-xl transition transform hover:scale-110">
@@ -561,7 +573,7 @@
         </div>
         <button onclick="closeDetailPanel()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-arrow-right-long text-xl"></i></button>
         
-        <div id="detail-content" class="mt-8 mb-4 flex-grow overflow-y-auto"></div>
+        <div id="detail-content" class="mt-8 mb-4 flex-grow overflow-y-auto custom-scrollbar"></div>
         
         <div class="p-4 bg-amber-100/80 border-t border-amber-200 backdrop-blur-sm -mx-6 -mb-6 flex gap-2">
             <input type="text" id="comment-input" class="flex-grow p-2 rounded-lg border border-amber-300 bg-white/80 text-sm" placeholder="Write a comment...">
@@ -570,8 +582,8 @@
     </div>
 
     <!-- Profile Modal (With Messages Tab) -->
-    <div id="profile-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-lg min-h-[500px] max-h-[80vh] flex flex-col bg-amber-50/95 relative">
+    <div id="profile-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 pointer-events-auto">
+        <div class="hand-drawn-container w-[95%] md:w-full md:max-w-lg min-h-[500px] max-h-[80vh] flex flex-col bg-amber-50/95 relative overflow-hidden">
             <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
             <div class="p-6 border-b border-amber-200 bg-amber-100/30 flex flex-col items-center">
                 <div class="relative group mb-2 w-20 h-20">
@@ -592,12 +604,12 @@
                 <button onclick="switchProfileTab('bookmarks')" id="tab-bookmarks" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent">Bookmarks</button>
                 <button onclick="switchProfileTab('messages')" id="tab-messages" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-amber-700 bg-transparent">Messages</button>
             </div>
-            <div class="flex-grow overflow-y-auto p-4" id="profile-content"></div>
+            <div class="flex-grow overflow-y-auto p-4 custom-scrollbar" id="profile-content"></div>
         </div>
     </div>
 
     <!-- Analysis Modal -->
-    <div id="analysis-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div id="analysis-modal" class="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 pointer-events-auto">
         <div class="hand-drawn-container w-[95%] md:w-full md:max-w-4xl max-h-[90vh] flex flex-col bg-amber-50/98 relative overflow-hidden">
             <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
             
@@ -606,7 +618,7 @@
                 <p class="text-xs text-slate-500 uppercase tracking-widest mt-1">Data Visualization & Smart Report</p>
             </div>
 
-            <div class="flex-grow overflow-y-auto p-6 space-y-6 no-scrollbar">
+            <div class="flex-grow overflow-y-auto p-6 space-y-6 custom-scrollbar">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-card">
                         <div class="flex justify-between items-center mb-4">
@@ -620,7 +632,7 @@
 
                     <div class="chart-card flex flex-col">
                         <h3 class="font-bold text-slate-700 text-sm mb-4">Trending Scent Keywords</h3>
-                        <div id="keyword-cloud" class="flex-grow bg-white/50 rounded-lg p-3 border border-amber-100 flex flex-wrap content-start gap-1 overflow-y-auto max-h-48"></div>
+                        <div id="keyword-cloud" class="flex-grow bg-white/50 rounded-lg p-3 border border-amber-100 flex flex-wrap content-start gap-1 overflow-y-auto max-h-48 custom-scrollbar"></div>
                     </div>
                 </div>
 
@@ -663,6 +675,26 @@
     </div>
 
     <script>
+        // --- Firebase Configuration & Initialization ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBGp-AjGwAaKp4bCoqDoYZ51BCof4mCoo0",
+          authDomain: "london-inhale.firebaseapp.com",
+          projectId: "london-inhale",
+          storageBucket: "london-inhale.firebasestorage.app",
+          messagingSenderId: "94851508636",
+          appId: "1:94851508636:web:7d9d430f8dadef5c498059",
+          measurementId: "G-CBPE8MQT0F"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        // 【加载提速优化1】尝试开启本地缓存，让非首次加载瞬间完成 (秒开)
+        db.enablePersistence().catch(function(err) {
+            console.log("Persistence failed", err);
+        });
+
         // Data & Translations
         const translations = {
             zh: {
@@ -717,12 +749,23 @@
             }
         };
 
+        // --- 新增：公告栏数据 (时间线排布) ---
+        const announcements = [
+            {
+                id: 'meetup-2026-02-28',
+                title: 'LONDON, INHALE<br>A Scent & Memory Meet-up',
+                dateStr: '28th Feb, Saturday, 2:00 PM',
+                location: 'Hyde Park, London',
+                imageUrl: 'https://i.postimg.cc/c4b0NXkB/9fad7e3facf0394fc8edae3ae76a572f.jpg',
+                content: `You are warmly invited to join an intimate afternoon of scent and shared memory.\n\nWe will begin with a quiet introduction: the familiar notes we have encountered in London, and the unexpected memories they awaken. From there, we will explore five original scents—each one inspired by a fragment of the city. After each fragrance, you are invited to speak in your mother tongue about the memories, images, or emotions that arise. Later, brief English reflections may follow, allowing conversations to cross between languages.\n\nThis gathering will be gently documented. There will be a camera observing the collective atmosphere, and a small DV available for those who wish to record their own first-person impressions.\n\nYour presence will shape the atmosphere of the afternoon.\n\n— London, Inhale`
+            }
+        ];
+
         let currentLang = 'en';
         const categories = { 'Floral': { color: '#F4A4A4', label: '花香调', en: 'Floral' }, 'Fruity': { color: '#F7C5A0', label: '果香调', en: 'Fruity' }, 'Woody': { color: '#D4B996', label: '木质调', en: 'Woody' }, 'Fresh': { color: '#A0C4FF', label: '清新调', en: 'Fresh' }, 'Sweet': { color: '#FCEEB5', label: '甜食', en: 'Sweet' }, 'Food': { color: '#FF8C8C', label: '食物', en: 'Food' }, 'Burnt': { color: '#B0B7C0', label: '焦味', en: 'Burnt' }, 'Mall': { color: '#DCD0FF', label: '商场', en: 'Mall' }, 'Dusty': { color: '#C7C1BD', label: '尘土', en: 'Dusty' }, 'Animalic': { color: '#A67B5B', label: '动物', en: 'Animalic' }, 'Rotten': { color: '#4A4A4A', label: '腐烂', en: 'Rotten' } };
         const emotions = [ { label: '温暖', en: 'Warm', emoji: '🥰' }, { label: '怀旧', en: 'Nostalgic', emoji: '🧸' }, { label: '平静', en: 'Calm', emoji: '😌' }, { label: '喜悦', en: 'Joyful', emoji: '🥳' }, { label: '惊讶', en: 'Surprised', emoji: '😲' }, { label: '悲伤', en: 'Sad', emoji: '🥺' }, { label: '不安', en: 'Anxious', emoji: '😰' }, { label: '愤怒', en: 'Angry', emoji: '😡' }, { label: '疲惫', en: 'Tired', emoji: '😫' }, { label: '迷茫', en: 'Lost', emoji: '😵‍💫' }, { label: '害怕', en: 'Scared', emoji: '😖' }, { label: '厌恶', en: 'Disgust', emoji: '🤢' } ];
         
         // --- NEW CULTURES LIST ---
-        // Retaining old IDs where possible for compatibility, creating new ones for new categories
         const cultures = [ 
             { id: 'Chinese', label: '中国', en: 'Chinese', color: '#ef4444' }, // Keep Red
             { id: 'East Asian', label: '东亚 (如日本、韩国)', en: 'East Asian (e.g. Japan, Korea)', color: '#2dd4bf' }, // Teal
@@ -799,7 +842,7 @@
                 
                 isDataLoaded = true;
                 
-                // Update Loading UI
+                // Update Loading UI - 恢复等待数据加载后显示按钮的逻辑
                 const loadingContainer = document.getElementById('loading-spinner');
                 const startBtn = document.getElementById('start-btn');
                 const statusEl = document.getElementById('intro-status');
@@ -854,6 +897,70 @@
             } else {
                 dot.classList.remove('active');
             }
+        }
+
+        // --- 新增：公告栏渲染与控制函数 (时间线布局) ---
+        function renderAnnouncements() {
+            const list = document.getElementById('announcement-list');
+            list.innerHTML = '';
+            
+            if(announcements.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 mt-10">Currently no active announcements.</p>';
+                return;
+            }
+
+            let html = '<div class="relative border-l-2 border-amber-300 ml-3 md:ml-4 mt-2 mb-8 space-y-10">';
+
+            announcements.forEach((a, index) => {
+                const isLatest = index === 0;
+                
+                // 图片排版
+                const imgHtml = a.imageUrl ? `<div class="mb-5 overflow-hidden rounded-xl border border-amber-200 shadow-sm"><img src="${a.imageUrl}" alt="Event Image" class="w-full h-auto object-cover max-h-64 md:max-h-80 hover:scale-105 transition duration-700"></div>` : '';
+
+                html += `
+                    <div class="relative pl-6 md:pl-8">
+                        <!-- 时间线节点 -->
+                        <div class="absolute -left-[9px] top-1 w-4 h-4 bg-amber-500 rounded-full border-4 border-amber-50 shadow"></div>
+                        
+                        <!-- 时间标签 -->
+                        <div class="mb-3 flex items-center gap-2">
+                            <span class="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full shadow-sm"><i class="fa-regular fa-calendar mr-1"></i> ${a.dateStr}</span>
+                            ${isLatest ? '<span class="text-[10px] font-bold text-red-500 animate-pulse uppercase tracking-wider">Latest</span>' : ''}
+                        </div>
+
+                        <!-- 内容卡片 -->
+                        <div class="bg-white/95 p-5 md:p-6 rounded-2xl border border-amber-200 shadow-sm relative group hover:shadow-md transition">
+                            <h3 class="text-lg md:text-xl font-bold text-amber-900 font-serif mb-4 leading-snug">${a.title}</h3>
+                            
+                            ${imgHtml}
+                            
+                            <div class="flex flex-wrap gap-2 mb-4 pb-3 border-b border-amber-100 border-dashed">
+                                <span class="text-xs font-medium text-slate-600"><i class="fa-solid fa-location-dot mr-1 text-amber-500"></i>${a.location}</span>
+                            </div>
+                            <div class="text-[13px] md:text-sm text-slate-700 leading-relaxed font-serif italic whitespace-pre-line">
+                                ${a.content}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            list.innerHTML = html;
+        }
+
+        function toggleAnnouncement() {
+            const modal = document.getElementById('announcement-modal');
+            if (modal.classList.contains('hidden')) {
+                renderAnnouncements();
+                modal.classList.remove('hidden');
+            } else {
+                closeAnnouncement();
+            }
+        }
+        
+        function closeAnnouncement() {
+            document.getElementById('announcement-modal').classList.add('hidden');
         }
 
         // --- Analysis Charts ---
@@ -969,7 +1076,15 @@
         function startExperience() {
             const intro = document.getElementById('intro-screen');
             intro.style.opacity = '0';
-            setTimeout(() => { intro.style.display = 'none'; initUI(); }, 800);
+            setTimeout(() => { 
+                intro.style.display = 'none'; 
+                initUI(); 
+                
+                // 首次开屏：每次自动弹出公告栏（取消已读机制）
+                if (announcements.length > 0) {
+                    setTimeout(() => { toggleAnnouncement(); }, 600);
+                }
+            }, 800);
         }
 
         function getText(key) { return translations[currentLang][key] || key; }
@@ -1140,6 +1255,24 @@
                 searchLayer.clearLayers(); 
                 if(document.getElementById('upload-modal').classList.contains('hidden') === false && currentStep === 1) {
                     handleMapClickForUpload(e.latlng);
+                }
+            });
+
+            // 核心修复：使用 Leaflet 官方方法，彻底隔离所有弹窗的鼠标/触控事件，防止穿透到地图！
+            const modalsToIsolate = [
+                'announcement-modal', 
+                'upload-modal', 
+                'profile-modal', 
+                'analysis-modal', 
+                'detail-panel', 
+                'filter-popup'
+            ];
+            
+            modalsToIsolate.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    L.DomEvent.disableScrollPropagation(el);
+                    L.DomEvent.disableClickPropagation(el);
                 }
             });
         }
