@@ -1699,19 +1699,29 @@
         }
 
         function showDetail(memory) {
+            let needsRender = false;
+            
             if(!visitedIds.includes(memory.id)) {
                 visitedIds.push(memory.id);
                 localStorage.setItem('li_visited', JSON.stringify(visitedIds));
+                needsRender = true;
             }
             
             if(flashingIds.includes(memory.id)) {
                 flashingIds = flashingIds.filter(id => id !== memory.id);
-                renderMarkers(); 
-                if(flashingIds.length === 0) { stopResonanceFlashing(); } 
+                if(flashingIds.length === 0) { 
+                    stopResonanceFlashing(); 
+                    needsRender = false; 
+                } 
                 else {
+                    needsRender = true;
                     const msg = getText('resMsg').replace('{count}', `<strong>${flashingIds.length}</strong>`);
                     document.getElementById('resonance-msg').innerHTML = msg;
                 }
+            }
+
+            if (needsRender) {
+                renderMarkers();
             }
 
             const panel = document.getElementById('detail-panel');
